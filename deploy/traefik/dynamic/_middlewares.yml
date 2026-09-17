@@ -1,0 +1,39 @@
+# Middlewares reutilizables. Cada servicio los referencia por nombre
+# (`ratelimit-ip@file`, etc.) desde su propio archivo dinámico (C11); este
+# archivo es el único dueño de esta lista y del router del dashboard.
+http:
+  middlewares:
+    ratelimit-ip:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    ratelimit-tenant:
+      rateLimit:
+        average: 300
+        burst: 150
+        sourceCriterion:
+          requestHeaderName: X-Tenant
+
+    secure-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: strict-origin-when-cross-origin
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+
+    # Dev only — user: admin, password: test (hash público de ejemplo de
+    # Traefik). Cambiar por un secret real en cualquier entorno no local.
+    dashboard-auth:
+      basicAuth:
+        users:
+          - "admin:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"
+
+  routers:
+    dashboard:
+      rule: "PathPrefix(`/api`) || PathPrefix(`/dashboard`)"
+      entryPoints: [web]
+      service: api@internal
+      middlewares: [dashboard-auth]
