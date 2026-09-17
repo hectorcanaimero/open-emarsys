@@ -1,0 +1,972 @@
+openapi: 3.1.0
+info:
+  title: open-emarsys admin API — identity
+  version: 1.0.0
+  summary: Console API owned by core/identity (contract C3).
+  description: |
+    Conventions shared by every `admin-v1/*.yaml`:
+
+    - Plain JSON bodies, no envelope.
+    - Errors are RFC 9457 `application/problem+json` (`Problem`).
+    - Lists paginate by cursor: `?cursor&limit` → `{ items, next_cursor }`; `next_cursor` is
+      `null` on the last page.
+    - Auth is a user JWT (`typ=user`, RS256) as `Authorization: Bearer`. Claims are documented
+      in `components.schemas.JwtClaims`; keys are published at `/.well-known/jwks.json`.
+    - `x-permission` on an operation names the `module:action` the caller's `perms` must
+      contain. `x-operator-only: true` means the caller must have `tenant_id = null`.
+    - Every write is recorded in the audit log (`GET /audit-log`).
+servers:
+  - url: /admin/v1
+security:
+  - bearerJwt: []
+tags:
+  - name: auth
+    description: Login, MFA challenge, token refresh and logout.
+  - name: me
+    description: The signed-in user's own settings.
+  - name: tenants
+    description: Tenant management (operator only).
+  - name: users
+    description: Users and invitations of the caller's tenant.
+  - name: roles
+    description: Roles and their module permissions.
+  - name: api-clients
+    description: OAuth client credentials for the public API.
+  - name: audit
+    description: Audit log of write actions.
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Log in with email and password
+      description: |
+        Returns tokens directly, or `mfa_required: true` with a short-lived `mfa_token` to
+        complete at `POST /auth/mfa/verify` when the user has MFA enabled. Five consecutive
+        failures lock the account for 15 minutes (`423`). Credential errors never reveal
+        whether the email exists.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Tokens issued, or MFA challenge pending.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenPair'
+                  - $ref: '#/components/schemas/MfaChallenge'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '423': { $ref: '#/components/responses/Locked' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/mfa/verify:
+    post:
+      tags: [auth]
+      operationId: verifyMfa
+      summary: Complete login with a TOTP code
+      description: Failed codes count toward the same lockout as failed passwords.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mfa_token, code]
+              properties:
+                mfa_token: { type: string }
+                code: { $ref: '#/components/schemas/TotpCode' }
+      responses:
+        '200':
+          description: Tokens issued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '423': { $ref: '#/components/responses/Locked' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshToken
+      summary: Rotate a refresh token
+      description: The presented refresh token is consumed; reusing it revokes the whole session.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: End the session of a refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204': { description: Session ended. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me:
+    patch:
+      tags: [me]
+      operationId: updateMe
+      summary: Update the signed-in user's preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                locale: { $ref: '#/components/schemas/Locale' }
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/mfa/enroll:
+    post:
+      tags: [me]
+      operationId: enrollMfa
+      summary: Start TOTP enrollment
+      description: Generates a pending secret. MFA is not active until `POST /me/mfa/confirm`.
+      responses:
+        '200':
+          description: Pending TOTP secret.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [secret, otpauth_uri]
+                properties:
+                  secret:
+                    type: string
+                    description: Base32 TOTP secret.
+                  otpauth_uri:
+                    type: string
+                    description: '`otpauth://totp/...` URI to render as a QR code.'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /me/mfa/confirm:
+    post:
+      tags: [me]
+      operationId: confirmMfa
+      summary: Activate MFA with a code from the pending secret
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { $ref: '#/components/schemas/TotpCode' }
+      responses:
+        '204': { description: MFA enabled. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /me/mfa:
+    delete:
+      tags: [me]
+      operationId: disableMfa
+      summary: Disable MFA
+      description: Requires a current TOTP code.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { $ref: '#/components/schemas/TotpCode' }
+      responses:
+        '204': { description: MFA disabled. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /tenants:
+    get:
+      tags: [tenants]
+      operationId: listTenants
+      summary: List tenants
+      x-operator-only: true
+      x-permission: tenants:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of tenants.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantPage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [tenants]
+      operationId: createTenant
+      summary: Create a tenant
+      x-operator-only: true
+      x-permission: tenants:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreate'
+      responses:
+        '201':
+          description: Tenant created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tenant' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [tenants]
+      operationId: getTenant
+      summary: Get a tenant
+      x-operator-only: true
+      x-permission: tenants:view
+      responses:
+        '200':
+          description: Tenant.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tenant' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [tenants]
+      operationId: updateTenant
+      summary: Update a tenant
+      x-operator-only: true
+      x-permission: tenants:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUpdate'
+      responses:
+        '200':
+          description: Updated tenant.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tenant' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /users:
+    get:
+      tags: [users]
+      operationId: listUsers
+      summary: List users of the caller's tenant
+      x-permission: users:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /users/invitations:
+    post:
+      tags: [users]
+      operationId: inviteUser
+      summary: Invite a user by email
+      description: Creates the user in `invited` status and emails a single-use acceptance link.
+      x-permission: users:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role_ids]
+              properties:
+                email: { type: string, format: email }
+                role_ids:
+                  type: array
+                  items: { type: string, format: uuid }
+                locale: { $ref: '#/components/schemas/Locale' }
+      responses:
+        '201':
+          description: Invitation sent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invitation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /invitations/{token}/accept:
+    post:
+      tags: [users]
+      operationId: acceptInvitation
+      summary: Accept an invitation and set a password
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, password]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                password: { type: string, format: password, minLength: 12, maxLength: 128 }
+      responses:
+        '200':
+          description: User activated; they can now log in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Invitation expired or already used.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [users]
+      operationId: updateUser
+      summary: Update a user's name, roles or status
+      x-permission: users:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 200 }
+                role_ids:
+                  type: array
+                  items: { type: string, format: uuid }
+                status:
+                  type: string
+                  enum: [active, disabled]
+                  description: '`active` also clears a lockout.'
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [users]
+      operationId: deleteUser
+      summary: Delete a user and end their sessions
+      x-permission: users:admin
+      responses:
+        '204': { description: User deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /roles:
+    get:
+      tags: [roles]
+      operationId: listRoles
+      summary: List roles
+      x-permission: roles:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of roles.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [roles]
+      operationId: createRole
+      summary: Create a role
+      x-permission: roles:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleInput'
+      responses:
+        '201':
+          description: Role created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /roles/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [roles]
+      operationId: updateRole
+      summary: Update a role
+      description: '`permissions`, when present, replaces the whole list.'
+      x-permission: roles:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                permissions:
+                  type: array
+                  items: { $ref: '#/components/schemas/Permission' }
+      responses:
+        '200':
+          description: Updated role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Role' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [roles]
+      operationId: deleteRole
+      summary: Delete a role
+      description: Fails with `409` while users are assigned to it.
+      x-permission: roles:admin
+      responses:
+        '204': { description: Role deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api-clients:
+    get:
+      tags: [api-clients]
+      operationId: listApiClients
+      summary: List API clients
+      x-permission: api_clients:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of API clients (secrets are never included).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiClientPage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [api-clients]
+      operationId: createApiClient
+      summary: Create API client credentials
+      description: The response is the only time `client_secret` is returned; only its hash is stored.
+      x-permission: api_clients:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scopes]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                scopes:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { $ref: '#/components/schemas/PermissionString' }
+      responses:
+        '201':
+          description: Client created.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiClientWithSecret' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api-clients/{id}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [api-clients]
+      operationId: revokeApiClient
+      summary: Revoke API client credentials
+      description: Idempotent. Tokens already issued to the client are rejected from this point on.
+      x-permission: api_clients:admin
+      responses:
+        '200':
+          description: Revoked client.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiClient' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /audit-log:
+    get:
+      tags: [audit]
+      operationId: listAuditLog
+      summary: Query the audit log
+      description: Newest first. Scoped to the caller's tenant; operators see all tenants.
+      x-permission: audit_log:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: actor_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: resource_type
+          in: query
+          schema: { type: string, examples: [contact, role, api_client] }
+        - name: from
+          in: query
+          description: Inclusive lower bound on `occurred_at`.
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          description: Exclusive upper bound on `occurred_at`.
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Page of audit entries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEntryPage'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: RS256 user JWT; see `JwtHeader` and `JwtClaims`.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor from a previous page's `next_cursor`.
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+  schemas:
+    JwtHeader:
+      type: object
+      description: JOSE header of every token issued by core/identity.
+      required: [alg, kid, typ]
+      properties:
+        alg: { type: string, const: RS256 }
+        kid:
+          type: string
+          description: Key id; selects the verification key in `/.well-known/jwks.json`.
+        typ: { type: string, const: JWT }
+    JwtClaims:
+      type: object
+      description: |
+        Payload of tokens issued by core/identity. Users carry `perms` (from their roles);
+        API clients and internal services carry `scopes`. Both use `module:action` strings.
+      required: [sub, typ, tenant_id, iat, exp]
+      properties:
+        sub:
+          type: string
+          description: User id or API client id (UUID), or service name for `service`.
+        typ:
+          type: string
+          enum: [user, client, service]
+        tenant_id:
+          type: [string, 'null']
+          format: uuid
+          description: '`null` for operator users and for cross-tenant service tokens.'
+        perms:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionString' }
+        scopes:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionString' }
+        iat:
+          type: integer
+          description: Issued at, seconds since epoch.
+        exp:
+          type: integer
+          description: Expiry, seconds since epoch.
+      allOf:
+        - if:
+            properties: { typ: { const: user } }
+          then:
+            required: [perms]
+            not: { required: [scopes] }
+          else:
+            required: [scopes]
+            not: { required: [perms] }
+      examples:
+        - sub: 0191e4a2-7b3c-7d10-9a55-2f7c1d3e4b60
+          typ: user
+          tenant_id: 0191e4a2-1111-7000-8000-000000000001
+          perms: ['campaigns:view', 'contacts:edit']
+          iat: 1789000000
+          exp: 1789000900
+    PermissionString:
+      type: string
+      pattern: '^[a-z_]+:(view|edit|launch|admin)$'
+      examples: ['campaigns:launch']
+    Permission:
+      type: object
+      required: [module, action]
+      properties:
+        module:
+          type: string
+          pattern: '^[a-z_]+$'
+          examples: [campaigns, contacts, users]
+        action:
+          type: string
+          enum: [view, edit, launch, admin]
+    Locale:
+      type: string
+      enum: [es, pt, en]
+    TotpCode:
+      type: string
+      pattern: '^[0-9]{6}$'
+    TokenPair:
+      type: object
+      required: [mfa_required, access_token, refresh_token, token_type, expires_in]
+      properties:
+        mfa_required: { type: boolean, const: false }
+        access_token:
+          type: string
+          description: JWT (`JwtClaims` with `typ=user`).
+        refresh_token:
+          type: string
+          description: Opaque, single-use.
+        token_type: { type: string, const: Bearer }
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds.
+    MfaChallenge:
+      type: object
+      required: [mfa_required, mfa_token]
+      properties:
+        mfa_required: { type: boolean, const: true }
+        mfa_token:
+          type: string
+          description: Opaque, short-lived; only valid for `POST /auth/mfa/verify`.
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+    Tenant:
+      type: object
+      required: [id, name, timezone, default_locale, limits, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        timezone:
+          type: string
+          description: IANA time zone.
+          examples: [America/Mexico_City]
+        default_locale: { $ref: '#/components/schemas/Locale' }
+        limits: { $ref: '#/components/schemas/TenantLimits' }
+        status:
+          type: string
+          enum: [active, suspended]
+        created_at: { type: string, format: date-time }
+    TenantLimits:
+      type: object
+      description: Usage limits; `null` means unlimited.
+      properties:
+        max_contacts: { type: [integer, 'null'], minimum: 0 }
+        max_emails_per_month: { type: [integer, 'null'], minimum: 0 }
+        max_users: { type: [integer, 'null'], minimum: 0 }
+        max_api_requests_per_minute: { type: [integer, 'null'], minimum: 0 }
+    TenantCreate:
+      type: object
+      required: [name, timezone, default_locale]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        timezone: { type: string }
+        default_locale: { $ref: '#/components/schemas/Locale' }
+        limits: { $ref: '#/components/schemas/TenantLimits' }
+    TenantUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        timezone: { type: string }
+        default_locale: { $ref: '#/components/schemas/Locale' }
+        limits: { $ref: '#/components/schemas/TenantLimits' }
+        status:
+          type: string
+          enum: [active, suspended]
+    User:
+      type: object
+      required: [id, tenant_id, email, name, locale, status, mfa_enabled, role_ids, created_at, last_login_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: [string, 'null'], format: uuid }
+        email: { type: string, format: email }
+        name: { type: [string, 'null'] }
+        locale: { $ref: '#/components/schemas/Locale' }
+        status:
+          type: string
+          enum: [invited, active, locked, disabled]
+        mfa_enabled: { type: boolean }
+        role_ids:
+          type: array
+          items: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        last_login_at: { type: [string, 'null'], format: date-time }
+    Invitation:
+      type: object
+      required: [id, user_id, email, expires_at]
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        expires_at: { type: string, format: date-time }
+    RoleInput:
+      type: object
+      required: [name, permissions]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        permissions:
+          type: array
+          items: { $ref: '#/components/schemas/Permission' }
+    Role:
+      type: object
+      required: [id, name, permissions, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        permissions:
+          type: array
+          items: { $ref: '#/components/schemas/Permission' }
+        created_at: { type: string, format: date-time }
+    ApiClient:
+      type: object
+      required: [id, client_id, name, scopes, status, created_at, revoked_at, last_used_at]
+      properties:
+        id: { type: string, format: uuid }
+        client_id: { type: string }
+        name: { type: string }
+        scopes:
+          type: array
+          items: { $ref: '#/components/schemas/PermissionString' }
+        status:
+          type: string
+          enum: [active, revoked]
+        created_at: { type: string, format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+        last_used_at: { type: [string, 'null'], format: date-time }
+    ApiClientWithSecret:
+      allOf:
+        - $ref: '#/components/schemas/ApiClient'
+        - type: object
+          required: [client_secret]
+          properties:
+            client_secret:
+              type: string
+              description: Shown once; cannot be retrieved again.
+    AuditEntry:
+      type: object
+      required: [id, occurred_at, tenant_id, actor_type, actor_id, action, resource_type, resource_id]
+      properties:
+        id: { type: string, format: uuid }
+        occurred_at: { type: string, format: date-time }
+        tenant_id: { type: [string, 'null'], format: uuid }
+        actor_type:
+          type: string
+          enum: [user, client, service]
+        actor_id: { type: string }
+        action:
+          type: string
+          examples: [contact.deleted, role.updated]
+        resource_type: { type: string }
+        resource_id: { type: [string, 'null'] }
+        ip: { type: [string, 'null'] }
+        changes:
+          type: [object, 'null']
+          description: 'Changed fields as `{field: {before, after}}`; secrets are never recorded.'
+    TenantPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Tenant' } }
+        next_cursor: { type: [string, 'null'] }
+    UserPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/User' } }
+        next_cursor: { type: [string, 'null'] }
+    RolePage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Role' } }
+        next_cursor: { type: [string, 'null'] }
+    ApiClientPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ApiClient' } }
+        next_cursor: { type: [string, 'null'] }
+    AuditEntryPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AuditEntry' } }
+        next_cursor: { type: [string, 'null'] }
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        errors:
+          type: array
+          description: Field-level validation errors (extension member).
+          items:
+            type: object
+            required: [pointer, detail]
+            properties:
+              pointer:
+                type: string
+                description: JSON Pointer into the request body.
+              detail: { type: string }
+  responses:
+    BadRequest:
+      description: Validation failed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid credentials or token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: The caller lacks the required permission, or is not an operator.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found in the caller's tenant.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Conflicts with the current state (duplicate, in use, already enrolled).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Locked:
+      description: Account locked for 15 minutes after five failed attempts.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Rate limit exceeded.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
