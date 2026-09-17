@@ -8,9 +8,14 @@ networks:
 volumes:
   pgdata:
   miniodata:
+  natsdata:
+  chdata:
 
 include:
   - infra/postgres.yml
   - infra/redis.yml
   - infra/minio.yml
   - infra/mailpit.yml
+  - infra/nats.yml
+  - infra/clickhouse.yml
+  - infra/temporal.yml
