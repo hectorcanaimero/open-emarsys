@@ -1,0 +1,67 @@
+-- Roles y schemas por servicio (NFR-8): un rol por servicio del arch, cada uno
+-- dueño solo de su(s) propio(s) schema(s) y sin BYPASSRLS. Los passwords se leen
+-- de variables de entorno del contenedor (ver deploy/compose/.env.example) con
+-- \getenv, ya que este archivo lo ejecuta psql vía docker-entrypoint-initdb.d.
+
+\getenv core_password OE_PG_CORE_PASSWORD
+\getenv importer_password OE_PG_IMPORTER_PASSWORD
+\getenv segments_password OE_PG_SEGMENTS_PASSWORD
+\getenv content_password OE_PG_CONTENT_PASSWORD
+\getenv campaigns_password OE_PG_CAMPAIGNS_PASSWORD
+\getenv dispatcher_password OE_PG_DISPATCHER_PASSWORD
+\getenv automation_password OE_PG_AUTOMATION_PASSWORD
+\getenv ml_password OE_PG_ML_PASSWORD
+\getenv analytics_password OE_PG_ANALYTICS_PASSWORD
+\getenv loyalty_password OE_PG_LOYALTY_PASSWORD
+\getenv connectors_password OE_PG_CONNECTORS_PASSWORD
+\getenv temporal_password OE_PG_TEMPORAL_PASSWORD
+
+CREATE ROLE core       LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'core_password';
+CREATE ROLE importer   LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'importer_password';
+CREATE ROLE segments   LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'segments_password';
+CREATE ROLE content    LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'content_password';
+CREATE ROLE campaigns  LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'campaigns_password';
+CREATE ROLE dispatcher LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'dispatcher_password';
+CREATE ROLE automation LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'automation_password';
+CREATE ROLE ml         LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'ml_password';
+CREATE ROLE analytics  LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'analytics_password';
+CREATE ROLE loyalty    LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'loyalty_password';
+CREATE ROLE connectors LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'connectors_password';
+CREATE ROLE temporal   LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'temporal_password';
+
+-- Schemas del rol core: identity, contacts, events_registry, catalog, devices, inbox.
+CREATE SCHEMA IF NOT EXISTS identity        AUTHORIZATION core;
+CREATE SCHEMA IF NOT EXISTS contacts        AUTHORIZATION core;
+CREATE SCHEMA IF NOT EXISTS events_registry AUTHORIZATION core;
+CREATE SCHEMA IF NOT EXISTS catalog         AUTHORIZATION core;
+CREATE SCHEMA IF NOT EXISTS devices         AUTHORIZATION core;
+CREATE SCHEMA IF NOT EXISTS inbox           AUTHORIZATION core;
+ALTER ROLE core SET search_path = identity, contacts, events_registry, catalog, devices, inbox;
+
+-- Un schema homónimo por cada uno de los demás roles/servicios.
+CREATE SCHEMA IF NOT EXISTS importer   AUTHORIZATION importer;
+CREATE SCHEMA IF NOT EXISTS segments   AUTHORIZATION segments;
+CREATE SCHEMA IF NOT EXISTS content    AUTHORIZATION content;
+CREATE SCHEMA IF NOT EXISTS campaigns  AUTHORIZATION campaigns;
+CREATE SCHEMA IF NOT EXISTS dispatcher AUTHORIZATION dispatcher;
+CREATE SCHEMA IF NOT EXISTS automation AUTHORIZATION automation;
+CREATE SCHEMA IF NOT EXISTS ml         AUTHORIZATION ml;
+CREATE SCHEMA IF NOT EXISTS analytics  AUTHORIZATION analytics;
+CREATE SCHEMA IF NOT EXISTS loyalty    AUTHORIZATION loyalty;
+CREATE SCHEMA IF NOT EXISTS connectors AUTHORIZATION connectors;
+CREATE SCHEMA IF NOT EXISTS temporal   AUTHORIZATION temporal;
+
+ALTER ROLE importer   SET search_path = importer;
+ALTER ROLE segments   SET search_path = segments;
+ALTER ROLE content    SET search_path = content;
+ALTER ROLE campaigns  SET search_path = campaigns;
+ALTER ROLE dispatcher SET search_path = dispatcher;
+ALTER ROLE automation SET search_path = automation;
+ALTER ROLE ml         SET search_path = ml;
+ALTER ROLE analytics  SET search_path = analytics;
+ALTER ROLE loyalty    SET search_path = loyalty;
+ALTER ROLE connectors SET search_path = connectors;
+ALTER ROLE temporal   SET search_path = temporal;
+
+-- CREATE SCHEMA ... AUTHORIZATION <role> ya deja al schema sin privilegios para
+-- ningún otro rol (ni siquiera PUBLIC): ningún rol puede leer un schema ajeno.
