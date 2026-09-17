@@ -74,7 +74,7 @@ jobs:
       - if: hashFiles('go.work') != ''
         name: Start NATS with JetStream
         run: |
-          docker run -d --name nats -p 4222:4222 -p 8222:8222 nats:2.11 -js
+          docker run -d --name nats -p 4222:4222 -p 8222:8222 nats:2.11 -js -m 8222
           i=0
           until curl -sf http://localhost:8222/healthz >/dev/null; do
             i=$((i + 1))
