@@ -1,0 +1,43 @@
+# CI that orch watches on every task PR (auto-PR → CI poll → auto-merge).
+# Polyglot on purpose: the monorepo mixes TypeScript (pnpm), Go and Python (uv).
+# Each toolchain is set up only when its manifest exists, and `make test` runs
+# once F0.1.T1 has created the Makefile — before that the job passes with a note,
+# so the scaffold PR itself can merge.
+name: orch-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: hashFiles('pnpm-lock.yaml') != ''
+        uses: pnpm/action-setup@v4
+      - if: hashFiles('package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: ${{ hashFiles('pnpm-lock.yaml') != '' && 'pnpm' || '' }}
+      - if: hashFiles('pnpm-lock.yaml') != ''
+        run: pnpm install --frozen-lockfile
+
+      - if: hashFiles('go.work', '**/go.mod') != ''
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - if: hashFiles('pyproject.toml') != ''
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run tests
+        run: |
+          if [ -f Makefile ]; then
+            make test
+          else
+            echo "No Makefile yet (F0.1.T1 creates it); nothing to test."
+          fi
