@@ -16,15 +16,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - if: hashFiles('pnpm-lock.yaml') != ''
+      # pnpm comes from package.json's packageManager field; a missing lockfile
+      # (early scaffold) installs without --frozen-lockfile instead of failing.
+      - if: hashFiles('package.json') != ''
         uses: pnpm/action-setup@v4
       - if: hashFiles('package.json') != ''
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: ${{ hashFiles('pnpm-lock.yaml') != '' && 'pnpm' || '' }}
-      - if: hashFiles('pnpm-lock.yaml') != ''
-        run: pnpm install --frozen-lockfile
+      - if: hashFiles('package.json') != ''
+        run: |
+          if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
 
       - if: hashFiles('go.work', '**/go.mod') != ''
         uses: actions/setup-go@v5
