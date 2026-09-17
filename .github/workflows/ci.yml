@@ -1,0 +1,148 @@
+# Main CI for the monorepo. Runs on every push and PR, one job per
+# toolchain, each guarded so it succeeds (nothing to do) until the
+# corresponding project actually exists.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: hashFiles('package.json') != ''
+        uses: pnpm/action-setup@v4
+
+      - if: hashFiles('package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: ${{ hashFiles('pnpm-lock.yaml') != '' && 'pnpm' || '' }}
+
+      - if: hashFiles('pnpm-lock.yaml') != ''
+        run: pnpm install --frozen-lockfile
+
+      - if: hashFiles('pnpm-lock.yaml') != ''
+        run: pnpm turbo lint typecheck test
+
+      - if: hashFiles('pnpm-lock.yaml') == ''
+        run: echo "No pnpm-lock.yaml yet; skipping Node lint/typecheck/test."
+
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: oe
+          POSTGRES_PASSWORD: oe
+          POSTGRES_DB: oe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U oe"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgres://oe:oe@localhost:5432/oe
+      REDIS_URL: redis://localhost:6379
+      NATS_URL: nats://localhost:4222
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: hashFiles('go.work') != ''
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: '**/go.sum'
+
+      # GitHub Actions `services:` cannot pass CLI args to a container, and
+      # JetStream needs `-js`, so NATS is started by hand instead.
+      - if: hashFiles('go.work') != ''
+        name: Start NATS with JetStream
+        run: |
+          docker run -d --name nats -p 4222:4222 -p 8222:8222 nats:2.11 -js
+          i=0
+          until curl -sf http://localhost:8222/healthz >/dev/null; do
+            i=$((i + 1))
+            if [ "$i" -ge 20 ]; then
+              echo "NATS did not become healthy in time" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - if: hashFiles('go.work') != ''
+        name: go work sync, vet and test per module
+        run: |
+          go work sync
+          mapfile -t modules < <(go work edit -json | jq -r '(.Use // [])[].DiskPath')
+          if [ ${#modules[@]} -eq 0 ]; then
+            echo "No Go modules listed in go.work yet; nothing to vet/test."
+            exit 0
+          fi
+          status=0
+          for m in "${modules[@]}"; do
+            echo "== $m =="
+            (cd "$m" && go vet ./... && go test ./...) || status=1
+          done
+          exit "$status"
+
+      - if: hashFiles('go.work') == ''
+        run: echo "No go.work yet; skipping Go vet/test."
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: hashFiles('pyproject.toml') != ''
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - if: hashFiles('pyproject.toml') != ''
+        name: uv sync, ruff and pytest
+        run: |
+          uv sync
+          uv run ruff check .
+          if uv run pytest; then
+            code=0
+          else
+            code=$?
+          fi
+          if [ "$code" -ne 0 ] && [ "$code" -ne 5 ]; then
+            exit "$code"
+          fi
+
+      - if: hashFiles('pyproject.toml') == ''
+        run: echo "No pyproject.toml yet; skipping Python lint/test."
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
+        run: make contracts
+
+      - if: hashFiles('scripts/codegen/validate-contracts.mjs') == ''
+        run: echo "scripts/codegen/validate-contracts.mjs not found yet (F0.3.T3); skipping."
