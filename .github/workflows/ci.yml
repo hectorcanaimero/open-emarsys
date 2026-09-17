@@ -137,12 +137,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
+        uses: pnpm/action-setup@v4
+      - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      # The validator imports ajv and swagger-parser from the root devDependencies.
       - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
-        run: make contracts
+        run: |
+          pnpm install
+          make contracts
 
       - if: hashFiles('scripts/codegen/validate-contracts.mjs') == ''
         run: echo "scripts/codegen/validate-contracts.mjs not found yet (F0.3.T3); skipping."
