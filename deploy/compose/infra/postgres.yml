@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    profiles: [core, data, ai]
+    networks: [oe]
+    environment:
+      POSTGRES_USER: ${OE_PG_ADMIN_USER}
+      POSTGRES_PASSWORD: ${OE_PG_ADMIN_PASSWORD}
+      POSTGRES_DB: ${OE_PG_DB}
+      OE_PG_CORE_PASSWORD: ${OE_PG_CORE_PASSWORD}
+      OE_PG_IMPORTER_PASSWORD: ${OE_PG_IMPORTER_PASSWORD}
+      OE_PG_SEGMENTS_PASSWORD: ${OE_PG_SEGMENTS_PASSWORD}
+      OE_PG_CONTENT_PASSWORD: ${OE_PG_CONTENT_PASSWORD}
+      OE_PG_CAMPAIGNS_PASSWORD: ${OE_PG_CAMPAIGNS_PASSWORD}
+      OE_PG_DISPATCHER_PASSWORD: ${OE_PG_DISPATCHER_PASSWORD}
+      OE_PG_AUTOMATION_PASSWORD: ${OE_PG_AUTOMATION_PASSWORD}
+      OE_PG_ML_PASSWORD: ${OE_PG_ML_PASSWORD}
+      OE_PG_ANALYTICS_PASSWORD: ${OE_PG_ANALYTICS_PASSWORD}
+      OE_PG_LOYALTY_PASSWORD: ${OE_PG_LOYALTY_PASSWORD}
+      OE_PG_CONNECTORS_PASSWORD: ${OE_PG_CONNECTORS_PASSWORD}
+      OE_PG_TEMPORAL_PASSWORD: ${OE_PG_TEMPORAL_PASSWORD}
+    ports:
+      - "${OE_PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../../postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512m

@@ -1,0 +1,49 @@
+services:
+  minio:
+    image: minio/minio:latest
+    profiles: [core, data, ai]
+    networks: [oe]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  minio-init:
+    image: minio/mc:latest
+    profiles: [core, data, ai]
+    networks: [oe]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing local/assets &&
+        mc mb --ignore-existing local/imports &&
+        mc mb --ignore-existing local/exports &&
+        mc mb --ignore-existing local/models &&
+        mc mb --ignore-existing local/opendata &&
+        mc mb --ignore-existing local/wallet
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          memory: 64m

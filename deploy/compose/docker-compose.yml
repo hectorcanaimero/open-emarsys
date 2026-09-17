@@ -1,0 +1,16 @@
+name: open-emarsys
+
+networks:
+  oe:
+    name: oe
+    driver: bridge
+
+volumes:
+  pgdata:
+  miniodata:
+
+include:
+  - infra/postgres.yml
+  - infra/redis.yml
+  - infra/minio.yml
+  - infra/mailpit.yml
