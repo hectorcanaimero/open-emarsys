@@ -21,3 +21,24 @@ venv/
 
 # atomize backups stay local
 tasks.json.bak-*
+
+# Node / pnpm
+node_modules/
+pnpm-lock.yaml
+dist/
+build/
+
+# Go
+go.sum
+
+# Generated code (F0.3.T3+)
+packages/ts-contracts/src/gen/
+libs/go/oe/gen/
+scripts/codegen/nav.ts
+
+# Environment
+.env.local
+.env*.local
+
+# Development
+/tmp/
