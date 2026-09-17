@@ -1,0 +1,11 @@
+{
+  "id": "01926f3a-8b2c-7d4e-9f10-2a3b4c5d6e7f",
+  "type": "contacts.upserted",
+  "schema_version": 1,
+  "tenant_id": "01926f00-0000-7000-8000-000000000001",
+  "occurred_at": "2026-09-17T12:34:56.789Z",
+  "source": "core",
+  "contact_id": "01926f3a-0000-7000-a000-00000000002a",
+  "trace_parent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {}
+}
