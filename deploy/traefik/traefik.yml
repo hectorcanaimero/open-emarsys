@@ -1,0 +1,23 @@
+entryPoints:
+  web:
+    address: ":8080"
+
+# Habilita /ping en el entrypoint web (sin auth, solo 200 OK) para healthchecks
+# y para el criterio de aceptación de F0.2.T3.
+ping:
+  entryPoint: web
+
+api:
+  dashboard: true
+
+log:
+  level: INFO
+
+# JSON para poder mandarlo al mismo pipeline de logs (otel-collector -> Loki).
+accessLog:
+  format: json
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
