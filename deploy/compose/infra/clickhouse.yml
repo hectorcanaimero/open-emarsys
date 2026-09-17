@@ -1,0 +1,34 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3
+    profiles: [core, data, ai]
+    networks: [oe]
+    environment:
+      CLICKHOUSE_DB: ${OE_CH_DB:-oe}
+      CLICKHOUSE_USER: ${OE_CH_ADMIN_USER:-oe_admin}
+      CLICKHOUSE_PASSWORD: ${OE_CH_ADMIN_PASSWORD:-change-me-ch-admin}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+      # Un password por servicio lector/escritor (NFR-2), ver
+      # deploy/clickhouse/config/init/00-users.sh.
+      OE_CH_COLLECTOR_PASSWORD: ${OE_CH_COLLECTOR_PASSWORD:-change-me-ch-collector}
+      OE_CH_SEGMENTS_PASSWORD: ${OE_CH_SEGMENTS_PASSWORD:-change-me-ch-segments}
+      OE_CH_ML_PASSWORD: ${OE_CH_ML_PASSWORD:-change-me-ch-ml}
+      OE_CH_ANALYTICS_PASSWORD: ${OE_CH_ANALYTICS_PASSWORD:-change-me-ch-analytics}
+      OE_CH_CORE_PASSWORD: ${OE_CH_CORE_PASSWORD:-change-me-ch-core}
+      OE_CH_IMPORTER_PASSWORD: ${OE_CH_IMPORTER_PASSWORD:-change-me-ch-importer}
+      OE_CH_AUTOMATION_PASSWORD: ${OE_CH_AUTOMATION_PASSWORD:-change-me-ch-automation}
+    ports:
+      - "${OE_CH_HTTP_PORT:-8123}:8123"
+      - "${OE_CH_NATIVE_PORT:-9004}:9000"
+    volumes:
+      - chdata:/var/lib/clickhouse
+      - ../../clickhouse/config/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 1024m

@@ -1,0 +1,68 @@
+services:
+  # auto-setup: al arrancar aplica el esquema SQL de Temporal contra Postgres.
+  # Se conecta con el rol `temporal` (deploy/postgres/init/00-roles.sql), cuyo
+  # search_path deja todas las tablas en el schema `temporal` de la base `oe`.
+  temporal:
+    image: temporalio/auto-setup:1.24.2
+    profiles: [core, data, ai]
+    networks: [oe]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${OE_PG_TEMPORAL_PASSWORD}
+      POSTGRES_SEEDS: postgres
+      DBNAME: ${OE_PG_DB:-oe}
+      VISIBILITY_DBNAME: ${OE_PG_DB:-oe}
+      SKIP_DB_CREATE: "true"
+      SKIP_DEFAULT_NAMESPACE_CREATION: "true"
+    ports:
+      - "${OE_TEMPORAL_PORT:-7233}:7233"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/7233 && exec 3<&-'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    profiles: [core, data, ai]
+    networks: [oe]
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:${OE_TEMPORAL_UI_PORT:-8088}
+    ports:
+      - "${OE_TEMPORAL_UI_PORT:-8088}:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # Crea el namespace open-emarsys (deploy/temporal/init/create-namespace.sh).
+  temporal-init:
+    image: temporalio/admin-tools:1.24.2
+    profiles: [core, data, ai]
+    networks: [oe]
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    volumes:
+      - ../../temporal/init/create-namespace.sh:/init/create-namespace.sh:ro
+    entrypoint: ["/bin/sh", "/init/create-namespace.sh"]
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          memory: 64m

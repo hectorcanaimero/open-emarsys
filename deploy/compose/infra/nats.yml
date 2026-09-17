@@ -1,0 +1,54 @@
+services:
+  nats:
+    image: nats:2.11-alpine
+    profiles: [core, data, ai]
+    networks: [oe]
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ../../nats/nats.conf:/etc/nats/nats.conf:ro
+      - natsdata:/data
+    ports:
+      - "${OE_NATS_PORT:-4222}:4222"
+      - "${OE_NATS_MONITOR_PORT:-8222}:8222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # Crea los 9 streams de C1 (retención por límites, storage file, réplica 1,
+  # duplicate_window 2 min) desde deploy/nats/streams/*.json. Idempotente: no
+  # recrea un stream que ya existe.
+  nats-init:
+    image: natsio/nats-box:latest
+    profiles: [core, data, ai]
+    networks: [oe]
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      NATS_URL: nats://nats:4222
+    volumes:
+      - ../../nats/streams:/streams:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        for f in /streams/*.json; do
+          name=$$(basename "$$f" .json)
+          if nats --server "$$NATS_URL" stream info "$$name" >/dev/null 2>&1; then
+            echo "stream $$name already exists, skipping"
+          else
+            nats --server "$$NATS_URL" stream add --config "$$f"
+          fi
+        done
+        nats --server "$$NATS_URL" stream ls
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          memory: 64m
