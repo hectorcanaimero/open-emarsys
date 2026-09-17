@@ -24,7 +24,6 @@ tasks.json.bak-*
 
 # Node / pnpm
 node_modules/
-pnpm-lock.yaml
 dist/
 build/
 

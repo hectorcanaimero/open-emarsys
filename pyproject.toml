@@ -1,12 +1,16 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "open-emarsys"
 version = "0.1.0"
+requires-python = ">=3.11"
+
+[dependency-groups]
+# Tooling the CI runs from the workspace root (uv sync installs this group).
+dev = ["ruff>=0.6", "pytest>=8"]
 
 [tool.uv]
+# The root is a virtual workspace: nothing to build or install here, the
+# Python services under services/ are the packages.
+package = false
 # Python workspace for ML and GenAI services
 # Uncomment members as services are scaffolded in F0.4+
 # members = ["services/ml", "services/genai"]
