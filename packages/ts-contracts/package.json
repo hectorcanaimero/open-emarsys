@@ -1,0 +1,21 @@
+{
+  "name": "@oe/ts-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./openapi/identity": "./src/gen/openapi/identity.ts",
+    "./openapi/public-v3": "./src/gen/openapi/public-v3.ts",
+    "./events/envelope": "./src/gen/events/envelope.ts",
+    "./proto/*": "./src/gen/proto/*"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "build": "pnpm run generate && tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.3",
+    "openapi-typescript": "^7.4.3",
+    "typescript": "^5.6.3"
+  }
+}

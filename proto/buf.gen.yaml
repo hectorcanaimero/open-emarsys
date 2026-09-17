@@ -1,0 +1,14 @@
+version: v2
+plugins:
+  # out paths are resolved relative to this file's directory (proto/), since
+  # scripts/codegen/gen.mjs runs `buf generate` with cwd=proto.
+  - remote: buf.build/protocolbuffers/go
+    out: ../libs/go/oe/gen
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: ../libs/go/oe/gen
+    opt: paths=source_relative
+  - remote: buf.build/bufbuild/es
+    out: ../packages/ts-contracts/src/gen/proto
+  - remote: buf.build/connectrpc/es
+    out: ../packages/ts-contracts/src/gen/proto
