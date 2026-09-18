@@ -24,9 +24,13 @@ export interface TenantScopeOptions {
 const systemScope = new AsyncLocalStorage<true>();
 const inScopedTx = new AsyncLocalStorage<true>();
 
-/** Runs `fn` as a platform operator: no tenant required, `systemRole` applied if configured. */
-export function withSystemScope<T>(fn: () => T): T {
-  return systemScope.run(true, fn);
+/**
+ * Runs `fn` as a platform operator: no tenant required, `systemRole` applied if configured.
+ * Awaits `fn` inside the scope — Prisma's promises are lazy, so returning one and awaiting it
+ * outside would run the query with the scope already gone.
+ */
+export function withSystemScope<T>(fn: () => T | Promise<T>): Promise<T> {
+  return systemScope.run(true, async () => await fn());
 }
 
 type Statement = [sql: string, params: string[]];

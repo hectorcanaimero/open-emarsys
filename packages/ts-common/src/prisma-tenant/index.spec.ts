@@ -52,7 +52,9 @@ let base: any;
 let prisma: any;
 let kysely: Kysely<DB>;
 
-const asA = <T>(fn: () => T) => TenantContext.run(A, fn);
+// Prisma's promises are lazy: returning one out of TenantContext.run() and awaiting it
+// afterwards runs the query with no tenant in context, so await it inside the scope.
+const asA = <T>(fn: () => T | Promise<T>) => TenantContext.run(A, async () => await fn());
 const tenantBRows = async () =>
   (await admin.query('select name from items where tenant_id = $1', [B])).rows.map((r) => r.name);
 
