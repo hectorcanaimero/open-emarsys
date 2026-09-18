@@ -21,6 +21,30 @@ info:
 
     Paths are added per phase; each phase has its own tag below. F1+ tasks add their paths
     under the matching tag and their scopes to `components.securitySchemes.oauth2`.
+
+    Contacts are addressed by field IDs, never by names: `key_id` is the ID (as a string) of a
+    unique field (`3` email, `4` external_id, `id` for the internal contact id, or a custom field
+    marked unique) and contact payloads are maps `{"<fieldId>": value}`. System field IDs are
+    listed in `contracts/dsl/system-fields.json`; custom fields start at `1000`.
+
+    Business `replyCode`s (also used as `code` in `data.errors[]`):
+
+    | Code | HTTP | Meaning |
+    |------|------|---------|
+    | 0    | 200/202 | OK (batch operations may still list failed items in `data.errors`) |
+    | 1001 | 400 | Malformed request: missing or invalid parameter or body |
+    | 1002 | 400 | Batch too large (more than 1,000 items) |
+    | 2008 | 404 / item | Contact not found for the given key |
+    | 2009 | 400 | Invalid `key_id`: the field does not exist or is not unique |
+    | 2010 | 400 / item | Invalid value for the field's type (date, number, choice id, ...) |
+    | 2011 | 400 / item | Field does not exist |
+    | 2012 | item | Contact already exists (`POST /contact` with an existing key) |
+    | 2013 | item | Field is read-only (e.g. `40` created_at) |
+    | 2014 | 400 / item | Key value missing or duplicated within the same request |
+    | 2015 | 409 | Field name already in use |
+    | 2016 | 404 | Contact list not found |
+    | 2017 | 404 | Relational table not found |
+    | 2018 | 400 | Invalid import mapping, mode or target |
 servers:
   - url: /api/v3
 security:
@@ -124,7 +148,613 @@ paths:
           $ref: '#/components/responses/NotFound'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+  /field:
+    get:
+      tags: [F1 Contacts]
+      operationId: listFields
+      summary: List system and custom fields
+      security:
+        - oauth2: ['contacts:view']
+      responses:
+        '200':
+          description: Every non-deleted field of the tenant.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Field'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags: [F1 Contacts]
+      operationId: createField
+      summary: Create a custom field
+      description: |
+        Assigns the next custom field ID (≥ 1000), which never changes afterwards. A name
+        already in use returns `409` with `replyCode` 2015.
+      security:
+        - oauth2: ['contacts:admin']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldCreate'
+      responses:
+        '200':
+          description: Field created.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Field'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /field/{id}/choice:
+    get:
+      tags: [F1 Contacts]
+      operationId: listFieldChoices
+      summary: List the options of a single or multi choice field
+      security:
+        - oauth2: ['contacts:view']
+      parameters:
+        - $ref: '#/components/parameters/FieldId'
+      responses:
+        '200':
+          description: Options with their stable IDs; `choice` is the label in the tenant's locale.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FieldChoice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contact:
+    post:
+      tags: [F1 Contacts]
+      operationId: createContacts
+      summary: Create up to 1,000 contacts
+      description: |
+        Partial success (FR-8): valid contacts are created and every failing one is reported in
+        `data.errors` with its index (2012 when the key already exists, 2010/2011/2013/2014 for
+        invalid data). `data.ids` holds the created contact IDs in request order, skipping
+        failed items.
+      security:
+        - oauth2: ['contacts:edit']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactBatchRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ContactBatch'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    put:
+      tags: [F1 Contacts]
+      operationId: updateContacts
+      summary: Update up to 1,000 contacts, optionally creating missing ones
+      description: |
+        Contacts are matched by `key_id`. Only the fields sent are changed; `null` clears a
+        field. Without `create_if_not_exists=1` an unknown key is reported as 2008 in
+        `data.errors`; with it the contact is created (upsert). Partial success as in
+        `POST /contact`.
+      security:
+        - oauth2: ['contacts:edit']
+      parameters:
+        - name: create_if_not_exists
+          in: query
+          required: false
+          schema: { type: integer, enum: [0, 1], default: 0 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactBatchRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ContactBatch'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contact/delete:
+    post:
+      tags: [F1 Contacts]
+      operationId: deleteContacts
+      summary: Delete up to 1,000 contacts by key
+      description: Each item carries only the key field. Unknown keys are reported as 2008.
+      security:
+        - oauth2: ['contacts:edit']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactBatchRequest'
+            example:
+              key_id: '3'
+              contacts:
+                - '3': ana@example.com
+      responses:
+        '200':
+          $ref: '#/components/responses/ContactBatch'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contact/getdata:
+    post:
+      tags: [F1 Contacts]
+      operationId: getContactData
+      summary: Read selected fields of up to 1,000 contacts
+      description: |
+        Returns only the requested field IDs for each contact found (FR-9). Keys with no
+        contact are listed in `data.errors` with 2008; unknown field IDs fail the whole request
+        with 2011.
+      security:
+        - oauth2: ['contacts:view']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetDataRequest'
+      responses:
+        '200':
+          description: Contacts found and per-key errors.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GetDataResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contact/consent:
+    post:
+      tags: [F1 Contacts]
+      operationId: setContactConsent
+      summary: Record a consent change for one contact and channel
+      description: |
+        Appends to the contact's consent history and updates the channel's opt-in field
+        (`31` email, `32` sms, `33` push). Unknown contact returns `404` with 2008.
+      security:
+        - oauth2: ['contacts:edit']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentRequest'
+      responses:
+        '200':
+          description: Consent recorded.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ContactRef'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contactlist:
+    get:
+      tags: [F1 Contacts]
+      operationId: listContactLists
+      summary: List contact lists
+      security:
+        - oauth2: ['contacts:view']
+      responses:
+        '200':
+          description: Every contact list of the tenant.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ContactList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags: [F1 Contacts]
+      operationId: createContactList
+      summary: Create a contact list, optionally with initial members
+      security:
+        - oauth2: ['contacts:edit']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactListCreate'
+      responses:
+        '200':
+          description: List created; keys that matched no contact are listed in `errors`.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [id, errors]
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          errors:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/BatchError'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contactlist/{id}/add:
+    post:
+      tags: [F1 Contacts]
+      operationId: addContactListMembers
+      summary: Add up to 1,000 contacts to a list by key
+      description: Adding a contact already in the list is not an error. Unknown keys are reported as 2008.
+      security:
+        - oauth2: ['contacts:edit']
+      parameters:
+        - $ref: '#/components/parameters/ListId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListMembersRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ListMembers'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contactlist/{id}/delete:
+    post:
+      tags: [F1 Contacts]
+      operationId: removeContactListMembers
+      summary: Remove up to 1,000 contacts from a list by key
+      description: The contacts themselves are not deleted. Unknown keys are reported as 2008.
+      security:
+        - oauth2: ['contacts:edit']
+      parameters:
+        - $ref: '#/components/parameters/ListId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListMembersRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ListMembers'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /contactlist/{id}/count:
+    get:
+      tags: [F1 Contacts]
+      operationId: countContactListMembers
+      summary: Count the members of a list
+      security:
+        - oauth2: ['contacts:view']
+      parameters:
+        - $ref: '#/components/parameters/ListId'
+      responses:
+        '200':
+          description: Number of (non-deleted) contacts in the list.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [count]
+                        properties:
+                          count:
+                            type: integer
+                            minimum: 0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /gdpr/export:
+    post:
+      tags: [F1 Contacts]
+      operationId: gdprExport
+      summary: Export every piece of data held about one contact
+      description: |
+        Starts a job whose `result_url` points to a file with the contact's fields, list
+        memberships, consent history and relational rows. Unknown contact returns 2008.
+      security:
+        - oauth2: ['contacts:admin']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactKey'
+      responses:
+        '202':
+          $ref: '#/components/responses/JobAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /gdpr/forget:
+    post:
+      tags: [F1 Contacts]
+      operationId: gdprForget
+      summary: Erase one contact (right to be forgotten)
+      description: |
+        Starts a job that deletes the contact's personal data everywhere (fields, list
+        memberships, relational rows, analytics); irreversible. Unknown contact returns 2008.
+      security:
+        - oauth2: ['contacts:admin']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactKey'
+      responses:
+        '202':
+          $ref: '#/components/responses/JobAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /import:
+    post:
+      tags: [F1 Contacts]
+      operationId: createImport
+      summary: Import a CSV file of contacts, list members or relational rows
+      description: |
+        Starts an import job. Rows that fail are skipped and listed in the job's
+        `error_report_url`; the rest are applied.
+      security:
+        - oauth2: ['contacts:edit']
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportRequest'
+            encoding:
+              mapping:
+                contentType: application/json
+      responses:
+        '202':
+          $ref: '#/components/responses/JobAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /export:
+    post:
+      tags: [F1 Contacts]
+      operationId: createExport
+      summary: Export contacts to CSV
+      description: Starts an export job; download the file from the job's `result_url`.
+      security:
+        - oauth2: ['contacts:view']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/JobAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /relational/{tableId}/rows:
+    put:
+      tags: [F1 Contacts]
+      operationId: upsertRelationalRows
+      summary: Upsert up to 1,000 rows of a relational table
+      description: |
+        Each row belongs to the contact found by `key_id`/`key_value` and is identified within
+        that contact by `row_key`; an existing row is replaced. Unknown contacts are reported as
+        2008, invalid values as 2010/2011.
+      security:
+        - oauth2: ['contacts:edit']
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelationalRowsRequest'
+      responses:
+        '200':
+          description: Rows applied and per-row errors.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [upserted, errors]
+                        properties:
+                          upserted:
+                            type: integer
+                            minimum: 0
+                          errors:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/BatchError'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 components:
+  parameters:
+    FieldId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    ListId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   securitySchemes:
     oauth2:
       type: oauth2
@@ -134,7 +764,297 @@ components:
           tokenUrl: /api/v3/oauth/token
           scopes:
             jobs:view: Read the status of jobs started by this tenant.
+            contacts:view: Read fields, contacts and lists; export contacts.
+            contacts:edit: Create, update and delete contacts, lists, consent and relational rows; import.
+            contacts:admin: Create custom fields; GDPR export and erasure.
   schemas:
+    FieldIdKey:
+      type: string
+      pattern: '^[0-9]+$'
+      description: A field ID as a string, e.g. `"3"` for email.
+    KeyId:
+      type: string
+      pattern: '^([0-9]+|id)$'
+      description: |
+        Field ID of a unique field used to match contacts (`3` email, `4` external_id, a unique
+        custom field) or `id` for the internal contact id. Anything else fails with 2009.
+      examples: ['3']
+    FieldType:
+      type: string
+      enum: [text, number, date, boolean, single_choice, multi_choice]
+    FieldValue:
+      description: |
+        Value of one field: text as string, number as number, date as `YYYY-MM-DD`, boolean,
+        single choice as the option ID, multi choice as an array of option IDs, `null` to clear.
+      type: [string, number, boolean, array, 'null']
+      items:
+        type: integer
+    ContactData:
+      type: object
+      description: Map of field ID to value.
+      propertyNames:
+        $ref: '#/components/schemas/FieldIdKey'
+      additionalProperties:
+        $ref: '#/components/schemas/FieldValue'
+      examples:
+        - '3': ana@example.com
+          '1': Ana
+    Field:
+      type: object
+      required: [id, name, application_type, string_id]
+      properties:
+        id:
+          type: integer
+          description: Stable field ID; 1–99 system, ≥ 1000 custom.
+        name:
+          type: string
+          description: Label in the tenant's locale.
+        application_type:
+          $ref: '#/components/schemas/FieldType'
+        string_id:
+          type: string
+          description: Unique snake_case `api_name`.
+          examples: [first_name]
+    FieldCreate:
+      type: object
+      required: [name, application_type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        application_type:
+          $ref: '#/components/schemas/FieldType'
+        string_id:
+          type: string
+          pattern: '^[a-z][a-z0-9_]*$'
+          description: Defaults to the snake_case form of `name`.
+        unique:
+          type: boolean
+          default: false
+          description: Unique fields can be used as `key_id`.
+        choices:
+          type: array
+          description: Options, in order; required for choice types.
+          items:
+            type: string
+            minLength: 1
+    FieldChoice:
+      type: object
+      required: [id, choice]
+      properties:
+        id:
+          type: integer
+        choice:
+          type: string
+    ContactBatchRequest:
+      type: object
+      required: [key_id, contacts]
+      properties:
+        key_id:
+          $ref: '#/components/schemas/KeyId'
+        contacts:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          description: Each contact must include the `key_id` field.
+          items:
+            $ref: '#/components/schemas/ContactData'
+      examples:
+        - key_id: '3'
+          contacts:
+            - '3': ana@example.com
+              '1': Ana
+    ContactRef:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: Internal contact id.
+    GetDataRequest:
+      type: object
+      required: [keyId, keyValues, fields]
+      properties:
+        keyId:
+          $ref: '#/components/schemas/KeyId'
+        keyValues:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: string
+        fields:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FieldIdKey'
+      examples:
+        - keyId: '3'
+          keyValues: [ana@example.com]
+          fields: ['1', '2']
+    GetDataResult:
+      type: object
+      required: [result, errors]
+      properties:
+        result:
+          type: array
+          items:
+            type: object
+            required: [id]
+            description: '`id` plus one entry per requested field ID.'
+            properties:
+              id:
+                type: string
+            additionalProperties:
+              $ref: '#/components/schemas/FieldValue'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchError'
+      examples:
+        - result:
+            - id: '1'
+              '1': Ana
+              '2': null
+          errors:
+            - index: 1
+              key: nobody@example.com
+              code: 2008
+              text: Contact not found
+    ContactKey:
+      type: object
+      required: [key_id, key_value]
+      properties:
+        key_id:
+          $ref: '#/components/schemas/KeyId'
+        key_value:
+          type: string
+    ConsentRequest:
+      allOf:
+        - $ref: '#/components/schemas/ContactKey'
+        - type: object
+          required: [channel, value, source]
+          properties:
+            channel:
+              type: string
+              enum: [email, sms, push]
+            value:
+              type: [integer, 'null']
+              enum: [1, 2, null]
+              description: '`1` opted in, `2` opted out, `null` unknown.'
+            source:
+              type: string
+              description: Where the consent was collected (form, import, API client...).
+              examples: [signup_form]
+            text:
+              type: string
+              description: Consent wording shown to the contact.
+    ContactList:
+      type: object
+      required: [id, name, created]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created:
+          type: string
+          format: date-time
+    ContactListCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        key_id:
+          $ref: '#/components/schemas/KeyId'
+        external_ids:
+          type: array
+          maxItems: 1000
+          description: Key values (of `key_id`) of the initial members.
+          items:
+            type: string
+    ListMembersRequest:
+      type: object
+      required: [key_id, external_ids]
+      properties:
+        key_id:
+          $ref: '#/components/schemas/KeyId'
+        external_ids:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          description: Key values of the contacts to add or remove.
+          items:
+            type: string
+    ImportRequest:
+      type: object
+      required: [file, mapping, key_id, mode, target]
+      properties:
+        file:
+          type: string
+          contentMediaType: text/csv
+          description: CSV with a header row.
+        mapping:
+          type: object
+          description: CSV column name → field ID.
+          additionalProperties:
+            $ref: '#/components/schemas/FieldIdKey'
+          examples:
+            - Email: '3'
+              Nombre: '1'
+        key_id:
+          $ref: '#/components/schemas/KeyId'
+        mode:
+          type: string
+          enum: [create, update, upsert]
+        target:
+          type: string
+          pattern: '^(contacts|list:[0-9a-fA-F-]{36}|relational:[0-9a-fA-F-]{36})$'
+          description: '`contacts`, `list:<listId>` (upsert and add to the list) or `relational:<tableId>`.'
+    ExportRequest:
+      type: object
+      required: [fields, scope, format]
+      properties:
+        fields:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FieldIdKey'
+        scope:
+          type: string
+          pattern: '^(all|list:[0-9a-fA-F-]{36})$'
+          description: '`all` or `list:<listId>`.'
+        format:
+          type: string
+          const: csv
+    RelationalRowsRequest:
+      type: object
+      required: [key_id, rows]
+      properties:
+        key_id:
+          $ref: '#/components/schemas/KeyId'
+        rows:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            required: [key_value, row_key, data]
+            properties:
+              key_value:
+                type: string
+              row_key:
+                type: string
+                description: Row identifier, unique per contact within the table.
+              data:
+                type: object
+                description: Column name → value, validated against the table's columns.
+                additionalProperties: true
     Envelope:
       type: object
       description: Wrapper of every public API response.
@@ -161,8 +1081,8 @@ components:
             data:
               type: [object, 'null']
       examples:
-        - replyCode: 1001
-          replyText: Invalid key field id
+        - replyCode: 2009
+          replyText: Invalid key_id
           data: null
     BatchError:
       type: object
@@ -202,8 +1122,8 @@ components:
             errors:
               - index: 2
                 key: john@example.com
-                code: 2010
-                text: Contacts with the external key already exist
+                code: 2012
+                text: Contact already exists
     JobAccepted:
       type: object
       description: '`data` of a `202` response for a long-running operation.'
@@ -282,6 +1202,58 @@ components:
         error_description:
           type: string
   responses:
+    ContactBatch:
+      description: Contacts processed; failed items are listed in `data.errors`.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/BatchErrors'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    required: [ids]
+                    properties:
+                      ids:
+                        type: array
+                        description: IDs of the contacts processed successfully, in request order.
+                        items:
+                          type: string
+    ListMembers:
+      description: Membership changed; keys that matched no contact are listed in `data.errors`.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/BatchErrors'
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    required: [count]
+                    properties:
+                      count:
+                        type: integer
+                        minimum: 0
+                        description: Contacts added or removed.
+    JobAccepted:
+      description: Job queued; poll `GET /jobs/{id}`.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Envelope'
+              - type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/JobAccepted'
+    Conflict:
+      description: The resource conflicts with an existing one.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
     BadRequest:
       description: Invalid parameters or business rule violation.
       content:
