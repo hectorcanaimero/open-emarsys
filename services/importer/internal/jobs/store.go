@@ -26,7 +26,10 @@ const (
 	StatusCancelled = "cancelled"
 )
 
-var ErrNotFound = errors.New("jobs: not found")
+var (
+	ErrNotFound = errors.New("jobs: not found")
+	ErrFinished = errors.New("jobs: already finished")
+)
 
 // Progress is persisted in jobs.progress. Percent is 0-100.
 type Progress struct {
@@ -197,10 +200,30 @@ func (s *Store) finish(ctx context.Context, id uuid.UUID, status string, p Progr
 	raw, _ := json.Marshal(p)
 	return s.sysTx(ctx, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `UPDATE importer.jobs SET status = $2, progress = $3, result_url = $4,
-			error_report_url = $5, error = nullif($6, ''), finished_at = now() WHERE id = $1`,
+			error_report_url = $5, error = nullif($6, ''), finished_at = now()
+			WHERE id = $1 AND status = 'running'`, // a cancelled job stays cancelled
 			id, status, raw, nullable(out.ResultURL), nullable(out.ErrorReportURL), errText)
 		return err
 	})
+}
+
+// Cancel marks a queued or running job of the tenant in ctx as cancelled; a running handler
+// notices on its next status check. It returns ErrNotFound for another tenant's job and
+// ErrFinished when the job already ended.
+func (s *Store) Cancel(ctx context.Context, id uuid.UUID) (*Job, error) {
+	var j *Job
+	err := pg.InTenantTx(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		j, err = scan(tx.QueryRow(ctx, `UPDATE importer.jobs SET status = 'cancelled', finished_at = now()
+			WHERE id = $1 AND status IN ('queued', 'running') RETURNING `+cols, id))
+		if errors.Is(err, ErrNotFound) { // no row updated: missing, or already finished
+			if j, err = scan(tx.QueryRow(ctx, `SELECT `+cols+` FROM importer.jobs WHERE id = $1`, id)); err == nil {
+				err = ErrFinished
+			}
+		}
+		return err
+	})
+	return j, err
 }
 
 func nullable(s string) *string {
