@@ -5,6 +5,7 @@
   "allOf": [
     { "$ref": "envelope.schema.json" },
     {
+      "type": "object",
       "properties": {
         "type": { "const": "system.audit.recorded" },
         "data": {
