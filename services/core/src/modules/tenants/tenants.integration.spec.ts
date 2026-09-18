@@ -194,6 +194,38 @@ describe('tenants (operator console, FR-1)', () => {
     expect(received).toMatchObject({ type: 'system.tenant.created', tenant_id: tenant.id, data: { id: tenant.id } });
   });
 
+  it('creates the first Admin in the same transaction when `admin` is given', async () => {
+    const res = await createTenant({
+      name: 'With Admin',
+      admin: { email: 'boss@with-admin.test', password: 'a-long-unique-passphrase' },
+    });
+    expect(res.status).toBe(201);
+    const id = (res.body as { id: string }).id;
+    const users = await withSystemScope(() =>
+      systemPrisma.user.findMany({ where: { tenantId: id }, include: { roles: true } })
+    );
+    expect(users).toHaveLength(1);
+    expect(users[0]).toMatchObject({ email: 'boss@with-admin.test', status: 'active' });
+    expect(users[0]!.passwordHash).toMatch(/^\$argon2/);
+    const adminRole = await withSystemScope(() =>
+      systemPrisma.role.findFirstOrThrow({ where: { tenantId: id, name: 'Admin' } })
+    );
+    expect(users[0]!.roles.map((r) => r.roleId)).toEqual([adminRole.id]);
+  });
+
+  it('rejects a weak or malformed `admin` with 400 and creates no tenant', async () => {
+    for (const admin of [
+      { email: 'x@weak.test', password: 'short' },
+      { email: 'x@weak.test', password: 'password1234' },
+      { email: 'not-an-email', password: 'a-long-unique-passphrase' },
+    ]) {
+      const res = await createTenant({ name: 'Weak Admin Tenant', admin });
+      expect(res.status).toBe(400);
+    }
+    const count = await withSystemScope(() => systemPrisma.tenant.count({ where: { name: 'Weak Admin Tenant' } }));
+    expect(count).toBe(0);
+  });
+
   it('rejects an invalid IANA time zone with 400 problem+json', async () => {
     const res = await createTenant({ timezone: 'Not/AZone' });
     expect(res.status).toBe(400);

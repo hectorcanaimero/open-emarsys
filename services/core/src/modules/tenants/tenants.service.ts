@@ -1,7 +1,9 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { hash } from '@node-rs/argon2';
 import { NatsPublisher } from '@oe/ts-common/nats';
 import { withSystemScope } from '@oe/ts-common/prisma-tenant';
 import type { Prisma, PrismaClient, Tenant } from '@prisma/client';
+import { isCommonPassword } from '../users/common-passwords.js';
 import { createDefaultTenantRoles } from './default-roles.js';
 import { SYSTEM_PRISMA_CLIENT } from './system-prisma.module.js';
 import type { TenantCreateInput, TenantLimits, TenantUpdateInput } from './tenants.schemas.js';
@@ -64,6 +66,12 @@ export class TenantsService {
   }
 
   async create(input: TenantCreateInput): Promise<TenantDto> {
+    if (input.admin && isCommonPassword(input.admin.password)) {
+      throw new BadRequestException({
+        errors: [{ pointer: '/admin/password', detail: 'this password is too common' }],
+      });
+    }
+    const adminPasswordHash = input.admin ? await hash(input.admin.password) : null;
     const tenant = await withSystemScope(() =>
       this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const created = await tx.tenant.create({
@@ -74,7 +82,19 @@ export class TenantsService {
             limits: input.limits ?? {},
           },
         });
-        await createDefaultTenantRoles(tx, created.id);
+        const adminRoleId = await createDefaultTenantRoles(tx, created.id);
+        if (input.admin && adminPasswordHash) {
+          const user = await tx.user.create({
+            data: {
+              tenantId: created.id,
+              email: input.admin.email,
+              passwordHash: adminPasswordHash,
+              locale: input.default_locale,
+              status: 'active',
+            },
+          });
+          await tx.userRole.create({ data: { userId: user.id, roleId: adminRoleId, tenantId: created.id } });
+        }
         return created;
       })
     );

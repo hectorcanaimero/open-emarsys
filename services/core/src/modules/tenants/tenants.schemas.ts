@@ -35,6 +35,10 @@ export const tenantCreateSchema = z
     timezone: timezoneSchema,
     default_locale: z.enum(LOCALES),
     limits: limitsSchema.optional(),
+    admin: z
+      .object({ email: z.string().email().max(320), password: z.string().min(12).max(128) })
+      .strict()
+      .optional(),
   })
   .strict();
 
