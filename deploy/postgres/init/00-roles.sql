@@ -48,6 +48,11 @@ CREATE SCHEMA IF NOT EXISTS devices         AUTHORIZATION core;
 CREATE SCHEMA IF NOT EXISTS inbox           AUTHORIZATION core;
 ALTER ROLE core SET search_path = identity, contacts, events_registry, catalog, devices, inbox;
 
+-- Trigram indexes for contact search (F1.2.T1). `core` cannot create extensions (no CREATE
+-- on the database), so the superuser does it here; the migration references
+-- `public.gin_trgm_ops`. A database created before this line needs it run once by hand.
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public;
+
 -- BYPASSRLS alone skips policies, not the ordinary schema/table grants: `core_system` still
 -- needs privileges of its own on the tables `core`'s migrations create (SET ROLE does not
 -- inherit them). Scoped to `identity`, the only schema the tenants module touches.
