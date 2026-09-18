@@ -9,7 +9,7 @@ on:
 
 jobs:
   node:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +32,7 @@ jobs:
         run: echo "No pnpm-lock.yaml yet; skipping Node lint/typecheck/test."
 
   go:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     services:
       postgres:
         image: postgres:17
@@ -105,7 +105,7 @@ jobs:
         run: echo "No go.work yet; skipping Go vet/test."
 
   python:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -134,7 +134,7 @@ jobs:
   # Mandatory since F0.3.T3: validates contracts, lints/breaking-checks the (still
   # empty) proto module, and asserts `make codegen` is idempotent.
   contracts:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
         with:
