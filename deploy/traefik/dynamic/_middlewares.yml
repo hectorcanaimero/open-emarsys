@@ -5,8 +5,8 @@ http:
   middlewares:
     ratelimit-ip:
       rateLimit:
-        average: 100
-        burst: 50
+        average: 0.17
+        burst: 10
 
     ratelimit-tenant:
       rateLimit:

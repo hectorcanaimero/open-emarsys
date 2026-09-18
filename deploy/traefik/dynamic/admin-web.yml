@@ -1,0 +1,15 @@
+http:
+  services:
+    admin-web:
+      loadBalancer:
+        servers:
+          - url: "http://admin-web:3000"
+
+  routers:
+    # Catch-all route for admin-web (lower priority than specific core routes)
+    admin-web-catch-all:
+      rule: "PathPrefix(`/`)"
+      service: admin-web
+      entryPoints: [web]
+      middlewares: [secure-headers]
+      priority: 1

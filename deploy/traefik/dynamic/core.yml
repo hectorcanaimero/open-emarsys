@@ -1,0 +1,81 @@
+http:
+  services:
+    core:
+      loadBalancer:
+        servers:
+          - url: "http://core:3000"
+
+  routers:
+    # JWKS endpoint - public, no auth needed
+    core-jwks:
+      rule: "Path(`/.well-known/jwks.json`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers]
+      priority: 100
+
+    # OAuth token endpoint - rate limited
+    core-oauth-token:
+      rule: "Path(`/api/v3/oauth/token`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-ip]
+      methods: [POST]
+      priority: 100
+
+    # Admin API endpoints
+    core-admin-auth:
+      rule: "PathPrefix(`/admin/v1/auth`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-ip, ratelimit-tenant]
+      priority: 100
+
+    core-admin-me:
+      rule: "PathPrefix(`/admin/v1/me`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    core-admin-tenants:
+      rule: "PathPrefix(`/admin/v1/tenants`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    core-admin-users:
+      rule: "PathPrefix(`/admin/v1/users`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    core-admin-invitations:
+      rule: "PathPrefix(`/admin/v1/invitations`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    core-admin-roles:
+      rule: "PathPrefix(`/admin/v1/roles`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    core-admin-api-clients:
+      rule: "PathPrefix(`/admin/v1/api-clients`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    core-admin-audit-log:
+      rule: "PathPrefix(`/admin/v1/audit-log`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
