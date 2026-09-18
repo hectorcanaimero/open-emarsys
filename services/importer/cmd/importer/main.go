@@ -11,10 +11,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nats-io/nats.go"
+
 	"github.com/open-emarsys/oe/libs/go/oe/auth"
 	"github.com/open-emarsys/oe/libs/go/oe/config"
 	"github.com/open-emarsys/oe/libs/go/oe/httpx"
 	oelog "github.com/open-emarsys/oe/libs/go/oe/log"
+	"github.com/open-emarsys/oe/libs/go/oe/natsx"
 	oeotel "github.com/open-emarsys/oe/libs/go/oe/otel"
 	"github.com/open-emarsys/oe/libs/go/oe/pg"
 	"github.com/open-emarsys/oe/services/importer/internal/coreclient"
@@ -82,6 +85,18 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return err
 	}
 
+	// Keep retrying if NATS is still starting; a publish that cannot reach it only logs.
+	nc, err := nats.Connect(cfg.String("NATS_URL", "nats://nats:4222"), nats.RetryOnFailedConnect(true), nats.MaxReconnects(-1))
+	if err != nil {
+		return err
+	}
+	defer nc.Close()
+	events, err := natsx.New(nc, serviceName)
+	if err != nil {
+		return err
+	}
+
+	tokens := auth.NewServiceTokenSource(coreURL, serviceName, secret)
 	jobStore := jobs.NewStore(pool)
 	env := &jobs.Env{
 		Store: jobStore,
@@ -91,9 +106,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			Stale:         cfg.Duration("ORPHAN_AFTER", 0),
 			MaxAttempts:   cfg.Int("MAX_ATTEMPTS", 3),
 		}),
-		Storage:  store,
-		Core:     coreclient.New(coreURL, auth.NewServiceTokenSource(coreURL, serviceName, secret)),
-		Verifier: auth.NewVerifier(coreURL),
+		Storage:    store,
+		Core:       coreclient.New(coreURL, tokens),
+		CoreURL:    coreURL,
+		CoreTokens: tokens,
+		Verifier:   auth.NewVerifier(coreURL),
+		Events:     events,
 	}
 
 	mux := http.NewServeMux()

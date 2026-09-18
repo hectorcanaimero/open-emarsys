@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -14,7 +15,7 @@ import {
   UseFilters,
   UseInterceptors,
 } from '@nestjs/common';
-import { CurrentPrincipal, type Principal, RequirePermission } from '@oe/ts-common/auth';
+import { CurrentPrincipal, InternalOnly, type Principal, RequirePermission } from '@oe/ts-common/auth';
 import { PublicApiError, PublicEnvelopeFilter, PublicEnvelopeInterceptor } from '@oe/ts-common/http';
 import { fieldCreateSchema, fieldUpdateSchema, parseBody, publicFieldCreateSchema, snakeCase } from './dto.js';
 import type { Choice } from './field-registry.js';
@@ -96,6 +97,30 @@ export class PublicFieldsController {
     if (!field.type.endsWith('_choice')) throw new PublicApiError(2010, `field ${id} has no choices`);
     const locale = await this.fields.localeOf(tenantId);
     return (field.choices as unknown as Choice[]).map((c) => ({ id: c.id, choice: c.labels[locale] }));
+  }
+}
+
+/** Internal (C4, FR-12): field metadata for the importer's export; service tokens only, tenant in the query. */
+@Controller('internal/v1/fields')
+@InternalOnly()
+export class InternalFieldsController {
+  constructor(private readonly fields: FieldsService) {}
+
+  @Get()
+  async list(@CurrentPrincipal() principal: Principal, @Query('tenant_id') tenantId?: string) {
+    if (!tenantId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) {
+      throw new BadRequestException('tenant_id must be a UUID');
+    }
+    if (principal.tenant_id && principal.tenant_id !== tenantId) throw new ForbiddenException('tenant_id does not match the service token');
+    return {
+      default_locale: await this.fields.localeOf(tenantId),
+      fields: (await this.fields.list(tenantId)).map((f) => ({
+        field_id: f.fieldId,
+        api_name: f.apiName,
+        type: f.type,
+        choices: (f.choices as unknown as Choice[]).map((c) => ({ id: c.id, labels: c.labels })),
+      })),
+    };
   }
 }
 

@@ -10,7 +10,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { PRISMA_CLIENT, PrismaModule } from '../../prisma/prisma.module.js';
 import { SystemFieldsSeeder } from '../contacts-shared/system-fields.seeder.js';
 import { FieldRegistry } from './field-registry.js';
-import { FieldsController, PublicFieldsController } from './fields.controller.js';
+import { FieldsController, InternalFieldsController, PublicFieldsController } from './fields.controller.js';
 import { FieldsModule } from './fields.module.js';
 import { KeyResolver } from './key-resolver.js';
 
@@ -31,6 +31,7 @@ describe('fields (definitions, registry, key resolver)', () => {
   let prisma: PrismaClient;
   let admin: FieldsController;
   let publicApi: PublicFieldsController;
+  let internal: InternalFieldsController;
   let registry: FieldRegistry;
   const as = <T>(tenant: string, fn: () => Promise<T>) => TenantContext.run(tenant, async () => await fn());
 
@@ -48,6 +49,7 @@ describe('fields (definitions, registry, key resolver)', () => {
     prisma = moduleRef.get(PRISMA_CLIENT);
     admin = moduleRef.get(FieldsController);
     publicApi = moduleRef.get(PublicFieldsController);
+    internal = moduleRef.get(InternalFieldsController);
     registry = moduleRef.get(FieldRegistry);
     const seeder = new SystemFieldsSeeder(prisma);
     await seeder.seed(A);
@@ -192,5 +194,19 @@ describe('fields (definitions, registry, key resolver)', () => {
     await expect(admin.remove(pa, f.field_id)).rejects.toThrow(/not found/);
     // the name is free again, the ID is not reused
     expect((await create({ api_name: 'temp', type: 'text' })).field_id).toBeGreaterThan(f.field_id);
+  });
+
+  it('internal: lists api_name, type and choice labels with the tenant default locale, bound to the token tenant', async () => {
+    const f = await create({ api_name: 'plan_export', type: 'single_choice', choices: [{ api_name: 'pro', labels: { es: 'Profesional', pt: 'Profissional', en: 'Pro' } }] });
+    const out = await internal.list({ tenant_id: null, typ: 'service' } as unknown as Principal, A);
+    expect(out.default_locale).toBe('es');
+    expect(out.fields.find((x) => x.field_id === f.field_id)).toEqual({
+      field_id: f.field_id,
+      api_name: 'plan_export',
+      type: 'single_choice',
+      choices: [{ id: 1, labels: { es: 'Profesional', pt: 'Profissional', en: 'Pro' } }],
+    });
+    await expect(internal.list({ tenant_id: B } as Principal, A)).rejects.toMatchObject({ status: 403 });
+    await expect(internal.list(pa, 'nope')).rejects.toMatchObject({ status: 400 });
   });
 });

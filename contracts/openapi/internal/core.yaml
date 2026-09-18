@@ -20,6 +20,7 @@ security:
   - bearerService: []
 tags:
   - name: contacts
+  - name: fields
   - name: lists
   - name: relational
 paths:
@@ -192,6 +193,36 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /fields:
+    get:
+      tags: [fields]
+      operationId: listFields
+      summary: Field definitions of a tenant with option labels
+      description: |
+        Non-deleted fields (system and custom) ordered by `field_id`, plus the tenant's
+        `default_locale`. The importer uses it to write export headers (`api_name`) and to
+        turn option IDs into their label.
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Field definitions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [default_locale, fields]
+                properties:
+                  default_locale: { type: string, enum: [es, pt, en] }
+                  fields:
+                    type: array
+                    items: { $ref: '#/components/schemas/FieldDefinition' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /lists/{id}/members:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -325,6 +356,26 @@ components:
       properties:
         id: { type: string, format: uuid }
         fields: { $ref: '#/components/schemas/FieldValues' }
+    FieldDefinition:
+      type: object
+      required: [field_id, api_name, type, choices]
+      properties:
+        field_id: { type: integer, minimum: 1 }
+        api_name: { type: string }
+        type: { type: string, enum: [text, number, date, boolean, single_choice, multi_choice] }
+        choices:
+          type: array
+          description: Empty unless the type is a choice type.
+          items:
+            type: object
+            required: [id, labels]
+            properties:
+              id: { type: integer, minimum: 1 }
+              labels:
+                type: object
+                description: Option label per locale.
+                required: [es, pt, en]
+                additionalProperties: { type: string }
     ItemError:
       type: object
       required: [code, text]
