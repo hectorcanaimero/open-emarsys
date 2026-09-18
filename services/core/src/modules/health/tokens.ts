@@ -1,1 +1,1 @@
-export const PRISMA_CLIENT = Symbol('oe:core:prisma');
+export const PG_POOL = Symbol('oe:core:pg-pool');

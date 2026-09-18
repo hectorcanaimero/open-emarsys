@@ -1,14 +1,14 @@
 import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
 import { Public } from '@oe/ts-common/auth';
 import { NATS_CONNECTION } from '@oe/ts-common/nats';
-import type { PrismaClient } from '@prisma/client';
 import type { NatsConnection } from 'nats';
-import { PRISMA_CLIENT } from './tokens.js';
+import type pg from 'pg';
+import { PG_POOL } from './tokens.js';
 
 @Controller()
 export class HealthController {
   constructor(
-    @Inject(PRISMA_CLIENT) private readonly prisma: PrismaClient,
+    @Inject(PG_POOL) private readonly pool: pg.Pool,
     @Inject(NATS_CONNECTION) private readonly nc: NatsConnection
   ) {}
 
@@ -30,7 +30,7 @@ export class HealthController {
 
   private async checkPostgres(): Promise<void> {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.pool.query('SELECT 1');
     } catch (err) {
       throw new ServiceUnavailableException(`postgres not ready: ${(err as Error).message}`);
     }

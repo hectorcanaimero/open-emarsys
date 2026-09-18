@@ -13,7 +13,11 @@ export default defineConfig({
   },
   format: ['esm', 'cjs'],
   dts: true,
-  splitting: false,
+  // Entries share classes that are DI tokens (NatsPublisher) and one AsyncLocalStorage
+  // (TenantContext). Without splitting each entry inlines its own copy: Nest cannot match
+  // audit's NatsPublisher to the one NatsModule provides, and prisma-tenant never sees the
+  // tenant that tenant/auth set. Shared code goes to chunks every entry requires.
+  splitting: true,
   sourcemap: false,
   clean: true,
   outDir: 'dist',

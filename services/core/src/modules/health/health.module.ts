@@ -1,18 +1,34 @@
-import { Global, Module } from '@nestjs/common';
-import { withTenantScope } from '@oe/ts-common/prisma-tenant';
-import { PrismaClient } from '@prisma/client';
+import { Inject, Module, type OnModuleDestroy } from '@nestjs/common';
+import pg from 'pg';
 import { HealthController } from './health.controller.js';
-import { PRISMA_CLIENT } from './tokens.js';
+import { PG_POOL } from './tokens.js';
 
 /**
- * Global so every future feature module can `@Inject(PRISMA_CLIENT)` the same
- * tenant-scoped client without re-declaring it (only this task edits
- * `app.module.ts` before the F0.6.T8 wiring task, C11).
+ * Readiness only needs to know Postgres answers, so it pings it with a plain pool.
+ * The tenant-scoped Prisma client (`withTenantScope` from @oe/ts-common/prisma-tenant)
+ * arrives with the first models in F0.6.T2: Prisma will not generate a client for a
+ * schema that has none.
  */
-@Global()
 @Module({
   controllers: [HealthController],
-  providers: [{ provide: PRISMA_CLIENT, useFactory: () => withTenantScope(new PrismaClient()) }],
-  exports: [PRISMA_CLIENT],
+  providers: [
+    {
+      provide: PG_POOL,
+      useFactory: () => {
+        const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+        // An idle client dies when Postgres restarts, and an unhandled 'error' event would
+        // take the whole process down. The pool drops that client; readyz reports the
+        // outage on its next query.
+        pool.on('error', () => {});
+        return pool;
+      },
+    },
+  ],
 })
-export class HealthModule {}
+export class HealthModule implements OnModuleDestroy {
+  constructor(@Inject(PG_POOL) private readonly pool: pg.Pool) {}
+
+  async onModuleDestroy(): Promise<void> {
+    await this.pool.end();
+  }
+}
