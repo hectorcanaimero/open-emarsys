@@ -26,14 +26,15 @@ tasks.json.bak-*
 node_modules/
 dist/
 build/
+.next/
 
 # Go
 go.sum
 
-# Generated code (F0.3.T3+)
+# Generated code (F0.3.T3+, F0.7.T1+)
 packages/ts-contracts/src/gen/
 libs/go/oe/gen/
-scripts/codegen/nav.ts
+apps/admin-web/src/nav/index.ts
 
 # Environment
 .env.local

@@ -1,0 +1,23 @@
+services:
+  admin-web:
+    build:
+      context: ../../..
+      dockerfile: apps/admin-web/Dockerfile
+    profiles: [core]
+    networks: [oe]
+    ports:
+      - "${ADMIN_WEB_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      ADMIN_API_URL: ${ADMIN_API_URL:-http://traefik:8080/admin/v1}
+    depends_on:
+      - traefik
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/es"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512m
