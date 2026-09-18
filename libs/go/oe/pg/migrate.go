@@ -21,8 +21,19 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, schema string, migrations 
 	ident := pgx.Identifier{schema}.Sanitize()
 
 	if err := InSystemTx(ctx, pool, func(tx pgx.Tx) error {
+		// Postgres checks CREATE on the database before it looks at IF NOT EXISTS, so a
+		// service role that owns its schema (deploy/postgres/init/00-roles.sql) but may not
+		// create schemas would fail here. Only create it when it is really missing.
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1)`, schema).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			if _, err := tx.Exec(ctx, "CREATE SCHEMA "+ident); err != nil {
+				return err
+			}
+		}
 		_, err := tx.Exec(ctx, fmt.Sprintf(`
-			CREATE SCHEMA IF NOT EXISTS %[1]s;
 			CREATE TABLE IF NOT EXISTS %[1]s.schema_migrations (
 				version    text PRIMARY KEY,
 				applied_at timestamptz NOT NULL DEFAULT now()
