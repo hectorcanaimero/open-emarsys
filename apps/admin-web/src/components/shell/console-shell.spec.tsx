@@ -7,7 +7,8 @@ import { filterNavByPermission, type NavItem } from '@/nav/types';
 import commonEs from '../../../messages/es/common.json';
 import { ConsoleShell } from './console-shell';
 
-vi.mock('next/navigation', () => ({
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
   useParams: () => ({ locale: 'es' }),
   usePathname: () => '/',
   useRouter: () => ({

@@ -10,10 +10,12 @@
       "cache": false
     },
     "test": {
+      "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
       "cache": false
     },
     "typecheck": {
+      "dependsOn": ["^build"],
       "outputs": [],
       "cache": false
     }

@@ -8,6 +8,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
+    // next-intl's ESM build imports `next/navigation` without an extension, which Node's
+    // resolver rejects when the package is externalized; let vite transform it instead.
+    server: { deps: { inline: ['next-intl'] } },
   },
   resolve: {
     alias: {

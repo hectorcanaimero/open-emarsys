@@ -1,5 +1,6 @@
 import nextPlugin from '@next/eslint-plugin-next';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
+import tseslint from 'typescript-eslint';
 
 export default [
   {
@@ -7,6 +8,7 @@ export default [
   },
   {
     files: ['**/*.{ts,tsx}'],
+    languageOptions: { parser: tseslint.parser },
     plugins: {
       '@next/next': nextPlugin,
       'jsx-a11y': jsxA11y,

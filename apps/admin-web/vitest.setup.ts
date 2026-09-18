@@ -9,6 +9,6 @@ interface AxeMatchers {
 }
 
 declare module 'vitest' {
-  interface Assertion<T = unknown> extends AxeMatchers {}
+  interface Assertion<T = any> extends AxeMatchers {}
   interface AsymmetricMatchersContaining extends AxeMatchers {}
 }

@@ -45,3 +45,5 @@ apps/admin-web/src/nav/index.ts
 
 # go work sync / go test regenerate this per checkout
 go.work.sum
+*.tsbuildinfo
+.turbo/
