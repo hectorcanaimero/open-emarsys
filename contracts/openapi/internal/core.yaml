@@ -1,0 +1,376 @@
+openapi: 3.1.0
+info:
+  title: open-emarsys internal API — core
+  version: 1.0.0
+  summary: Service-to-service API of core (contract C4).
+  description: |
+    Reachable only on the internal Compose network, never through the gateway. Callers send a
+    service JWT (`typ=service`) as `Authorization: Bearer`. Every request names `tenant_id`
+    explicitly; core runs it inside that tenant's RLS scope.
+
+    Plain JSON and RFC 9457 `application/problem+json` errors, like `admin-v1`. Batch
+    operations succeed partially: per-item errors come back by position and do not abort the
+    batch. Item error codes are the public API `replyCode`s (2008 key not found, 2009 key field
+    not unique, 2010/2011 invalid field value).
+
+    Contact data is a map keyed by field ID as a string (`{"3": "ana@example.com"}`).
+servers:
+  - url: /internal/v1
+security:
+  - bearerService: []
+tags:
+  - name: contacts
+  - name: lists
+  - name: relational
+paths:
+  /contacts/batch-upsert:
+    post:
+      tags: [contacts]
+      operationId: batchUpsertContacts
+      summary: Create or update up to 1,000 contacts
+      description: Same engine as `PUT /api/v3/contact`. One transaction per batch for the valid items.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, key_id, mode, contacts]
+              properties:
+                tenant_id: { type: string, format: uuid }
+                key_id: { $ref: '#/components/schemas/KeyId' }
+                mode: { $ref: '#/components/schemas/UpsertMode' }
+                source:
+                  type: string
+                  default: import
+                  description: Recorded as consent `source` when fields 31/32/33 change.
+                contacts:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  description: Each item must contain the `key_id` field.
+                  items: { $ref: '#/components/schemas/FieldValues' }
+      responses:
+        '200':
+          description: One result per input item, in order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [index, id, created]
+                      properties:
+                        index: { type: integer, minimum: 0 }
+                        id:
+                          type: [string, 'null']
+                          format: uuid
+                          description: '`null` when the item failed.'
+                        created: { type: boolean }
+                        error: { $ref: '#/components/schemas/ItemError' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /contacts/lookup:
+    post:
+      tags: [contacts]
+      operationId: lookupContacts
+      summary: Read fields of up to 5,000 contacts by ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, contact_ids, field_ids]
+              properties:
+                tenant_id: { type: string, format: uuid }
+                contact_ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 5000
+                  items: { type: string, format: uuid }
+                field_ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  items: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Requested fields keyed by contact ID. Unknown or deleted IDs are absent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contacts]
+                properties:
+                  contacts:
+                    type: object
+                    propertyNames: { format: uuid }
+                    additionalProperties: { $ref: '#/components/schemas/FieldValues' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /contacts/stream:
+    get:
+      tags: [contacts]
+      operationId: streamContacts
+      summary: Stream all contacts as NDJSON
+      description: |
+        One `StreamedContact` JSON object per line, ordered by `id`, read with a server-side
+        cursor and backpressure. Deleted contacts are excluded. A truncated body (no final
+        newline or connection reset) means the stream failed and must be retried.
+      parameters:
+        - name: tenant_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: fields
+          in: query
+          required: true
+          description: Comma-separated field IDs, e.g. `fields=1,2,3`.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 500
+            items: { type: integer, minimum: 1 }
+        - name: list_id
+          in: query
+          description: Only members of this list.
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: NDJSON stream.
+          content:
+            application/x-ndjson:
+              schema: { $ref: '#/components/schemas/StreamedContact' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contacts/{id}/fields:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [contacts]
+      operationId: updateContactFields
+      summary: Set fields of one contact
+      description: Merge semantics; `null` removes a key. Bumps `version` and publishes `contacts.upserted`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, fields]
+              properties:
+                tenant_id: { type: string, format: uuid }
+                fields: { $ref: '#/components/schemas/FieldValues' }
+                source: { type: string, description: Recorded as consent `source` when fields 31/32/33 change. }
+      responses:
+        '200':
+          description: Contact updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, version, changed]
+                properties:
+                  id: { type: string, format: uuid }
+                  version: { type: integer, minimum: 1 }
+                  changed:
+                    type: array
+                    description: Field IDs whose value changed.
+                    items: { type: string, pattern: '^[1-9][0-9]*$' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /lists/{id}/members:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [lists]
+      operationId: addListMembersByKey
+      summary: Add up to 10,000 contacts to a list by key
+      description: Idempotent. Keys that match no contact come back as errors without aborting.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, key_id, key_values]
+              properties:
+                tenant_id: { type: string, format: uuid }
+                key_id: { $ref: '#/components/schemas/KeyId' }
+                key_values:
+                  type: array
+                  minItems: 1
+                  maxItems: 10000
+                  items: { type: string }
+      responses:
+        '200':
+          description: Members added.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [added, errors]
+                properties:
+                  added: { type: integer, minimum: 0, description: New memberships (already-present contacts not counted). }
+                  errors:
+                    type: array
+                    items: { $ref: '#/components/schemas/IndexedError' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /relational/{tableId}/rows:
+    parameters:
+      - name: tableId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [relational]
+      operationId: upsertRelationalRows
+      summary: Upsert up to 1,000 relational rows
+      description: A row is identified by `(contact, row_key)`; existing rows are replaced. Values are validated by column type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant_id, key_id, rows]
+              properties:
+                tenant_id: { type: string, format: uuid }
+                key_id: { $ref: '#/components/schemas/KeyId' }
+                rows:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items:
+                    type: object
+                    required: [key_value, row_key, data]
+                    properties:
+                      key_value: { type: string, description: Value of `key_id` that identifies the contact. }
+                      row_key: { type: string, minLength: 1 }
+                      data:
+                        type: object
+                        description: Values keyed by column name.
+                        additionalProperties: { $ref: '#/components/schemas/FieldValue' }
+      responses:
+        '200':
+          description: Rows upserted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [upserted, errors]
+                properties:
+                  upserted: { type: integer, minimum: 0 }
+                  errors:
+                    type: array
+                    items: { $ref: '#/components/schemas/IndexedError' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerService:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: RS256 service JWT with `typ=service`. `tenant_id` in the body or query is the tenant acted on.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    KeyId:
+      type: string
+      description: Field ID that identifies the contact (`"3"` email, `"4"` external_id, a custom unique field) or `id` for the internal UUID.
+      pattern: '^(id|[1-9][0-9]*)$'
+      examples: ['3']
+    UpsertMode:
+      type: string
+      description: '`create` only inserts (existing key → error), `update` only changes (missing key → 2008), `upsert` does both.'
+      enum: [create, update, upsert]
+    FieldValue:
+      description: |
+        Value by field type: text → string, number → number, date → `YYYY-MM-DD`, boolean →
+        boolean, single_choice → option ID, multi_choice → array of option IDs. `null` in a
+        write removes the key.
+      type: [string, number, boolean, array, 'null']
+      items: { type: integer }
+    FieldValues:
+      type: object
+      description: Contact data keyed by field ID as a string.
+      propertyNames: { pattern: '^[1-9][0-9]*$' }
+      additionalProperties: { $ref: '#/components/schemas/FieldValue' }
+    StreamedContact:
+      type: object
+      required: [id, fields]
+      properties:
+        id: { type: string, format: uuid }
+        fields: { $ref: '#/components/schemas/FieldValues' }
+    ItemError:
+      type: object
+      required: [code, text]
+      properties:
+        code: { type: integer, examples: [2008, 2009, 2010, 2011] }
+        text: { type: string }
+        field_id: { type: [string, 'null'], description: Offending field, when the error is about one. }
+    IndexedError:
+      type: object
+      required: [index, key, code, text]
+      properties:
+        index: { type: integer, minimum: 0 }
+        key: { type: string, description: The key value of the failed item. }
+        code: { type: integer }
+        text: { type: string }
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+  responses:
+    BadRequest:
+      description: Validation failed (malformed body, batch too large, unknown field ID).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid service token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: The token is not `typ=service` or the service may not act on this tenant.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Contact, list or table not found in the tenant.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
