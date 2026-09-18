@@ -22,4 +22,5 @@ include:
   - infra/traefik.yml
   - infra/observability.yml
   - services/core.yml
+  - services/importer.yml
   - services/admin-web.yml
