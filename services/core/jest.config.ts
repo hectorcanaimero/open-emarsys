@@ -3,6 +3,9 @@ import type { Config } from 'jest';
 const config: Config = {
   rootDir: '.',
   testEnvironment: 'node',
+  // Most specs start their own Postgres container. Jest's default (cores - 1 = 15 here)
+  // ran that many at once and OOM-killed the CI runner on this 14 GB machine.
+  maxWorkers: 2,
   transform: { '^.+\\.tsx?$': ['ts-jest', {}] },
   testRegex: '.*\\.(spec|test)\\.ts$',
   moduleFileExtensions: ['ts', 'js', 'json'],
