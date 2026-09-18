@@ -1,0 +1,17 @@
+{
+  "id": "01926f3a-9c1d-7abc-9def-0123456789b1",
+  "type": "system.job.completed",
+  "schema_version": 1,
+  "tenant_id": "01926f00-0000-7000-8000-000000000001",
+  "occurred_at": "2026-09-18T10:10:00.000Z",
+  "source": "importer",
+  "contact_id": null,
+  "data": {
+    "job_id": "01926f3a-0000-7000-a000-0000000000e1",
+    "kind": "export",
+    "status": "succeeded",
+    "result_url": "http://minio:9000/exports/01926f00-0000-7000-8000-000000000001/01926f3a-0000-7000-a000-0000000000e1.csv?X-Amz-Expires=86400",
+    "expires_at": "2026-09-19T10:10:00.000Z",
+    "error": null
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SystemJobCompleted",
+  "description": "FR-12: an importer job (import or export) reached a final state. The console shows it as a notice. result_url is a presigned download URL that expires at expires_at (exports only).",
+  "allOf": [
+    { "$ref": "envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "system.job.completed" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["job_id", "kind", "status"],
+          "properties": {
+            "job_id": { "type": "string" },
+            "kind": { "type": "string", "enum": ["import", "export"] },
+            "status": { "type": "string", "enum": ["succeeded", "failed"] },
+            "result_url": { "type": ["string", "null"] },
+            "expires_at": { "type": ["string", "null"] },
+            "error": { "type": ["string", "null"] }
+          }
+        }
+      }
+    }
+  ]
+}
