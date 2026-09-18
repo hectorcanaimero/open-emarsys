@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConsentChanged",
+  "description": "FR-14: consent of a contact for one channel changed. Mirrors a row appended to contacts.consents; the current value also lives in field 31 (email), 32 (sms) or 33 (push). contact_id is required.",
+  "allOf": [
+    { "$ref": "envelope.schema.json" },
+    {
+      "type": "object",
+      "required": ["contact_id"],
+      "properties": {
+        "type": { "const": "consent.changed" },
+        "contact_id": { "type": "string" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["channel", "value", "source", "text"],
+          "properties": {
+            "channel": { "type": "string", "enum": ["email", "sms", "push"] },
+            "value": {
+              "description": "1 = yes, 2 = no, null = unknown (consent cleared).",
+              "enum": [1, 2, null]
+            },
+            "source": {
+              "description": "Where the change came from, e.g. api, import, form, unsubscribe, admin.",
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "description": "Consent text the contact accepted, or null when there is none (e.g. unsubscribe link).",
+              "type": ["string", "null"]
+            }
+          }
+        }
+      }
+    }
+  ]
+}
