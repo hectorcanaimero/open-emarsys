@@ -1,0 +1,89 @@
+{
+  "nav": {
+    "users": "Usuarios",
+    "roles": "Roles"
+  },
+  "users": {
+    "title": "Usuarios",
+    "searchLabel": "Buscar usuarios",
+    "searchPlaceholder": "Buscar por nombre o email",
+    "loadError": "No se pudieron cargar los usuarios.",
+    "empty": "No hay usuarios que coincidan con la búsqueda.",
+    "invite": {
+      "heading": "Invitar usuario",
+      "emailLabel": "Email",
+      "rolesLabel": "Roles",
+      "submit": "Enviar invitación",
+      "submitting": "Enviando…",
+      "success": "Invitación enviada a {email}.",
+      "rolesRequired": "Selecciona al menos un rol."
+    },
+    "table": {
+      "email": "Email",
+      "name": "Nombre",
+      "status": "Estado",
+      "roles": "Roles",
+      "actions": "Acciones"
+    },
+    "status": {
+      "invited": "Invitado",
+      "active": "Activo",
+      "locked": "Bloqueado",
+      "disabled": "Desactivado"
+    },
+    "editRoles": "Editar roles",
+    "saveRoles": "Guardar roles",
+    "cancel": "Cancelar",
+    "deactivate": "Desactivar",
+    "reactivate": "Reactivar",
+    "deactivateConfirm": "¿Desactivar a {email}?",
+    "reactivateConfirm": "¿Reactivar a {email}?",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar a {email}? Esta acción no se puede deshacer.",
+    "errors": {
+      "duplicateEmail": "Ya existe un usuario con ese email.",
+      "lastAdmin": "No se puede borrar ni desactivar al último Admin del tenant.",
+      "generic": "Ocurrió un error. Intenta de nuevo."
+    }
+  },
+  "roles": {
+    "title": "Roles",
+    "loadError": "No se pudieron cargar los roles.",
+    "table": {
+      "module": "Módulo"
+    },
+    "editPermissions": "Editar permisos",
+    "savePermissions": "Guardar permisos",
+    "saving": "Guardando…",
+    "cancel": "Cancelar",
+    "delete": "Borrar",
+    "deleteConfirm": "¿Borrar el rol {name}?",
+    "defaultBadge": "Rol por defecto",
+    "defaultNotDeletable": "Los roles por defecto no se pueden borrar.",
+    "matrixCaption": "Permisos de {name} por módulo y acción",
+    "modules": {
+      "platform": "Plataforma",
+      "identity": "Identidad",
+      "contacts": "Contactos",
+      "events": "Eventos",
+      "segments": "Segmentos",
+      "email": "Email",
+      "campaigns": "Campañas",
+      "automation": "Automatización",
+      "predict": "Predict",
+      "channels": "Canales",
+      "analytics": "Analítica",
+      "loyalty": "Loyalty",
+      "integrations": "Integraciones"
+    },
+    "actions": {
+      "view": "Ver",
+      "edit": "Editar",
+      "launch": "Lanzar",
+      "admin": "Administrar"
+    },
+    "errors": {
+      "generic": "Ocurrió un error. Intenta de nuevo."
+    }
+  }
+}
