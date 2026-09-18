@@ -5,6 +5,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [react()],
   test: {
+    // Vitest defaults to one worker per core (16 here); bounded so CI and parallel agents fit in RAM.
+    minWorkers: 1,
+    maxWorkers: 4,
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
