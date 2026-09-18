@@ -1,0 +1,35 @@
+{
+  "title": "Datos relacionales",
+  "empty": "Todavía no hay tablas relacionales.",
+  "cancel": "Cancelar",
+  "types": { "text": "Texto", "number": "Número", "date": "Fecha", "boolean": "Sí/No", "single_choice": "Opción única", "multi_choice": "Opción múltiple" },
+  "columns": { "name": "Nombre de columna", "type": "Tipo de columna", "add": "Agregar otra columna", "remove": "Quitar columna {n}" },
+  "create": { "title": "Nueva tabla", "name": "Nombre de la tabla", "keyField": "Columna clave", "submit": "Crear tabla" },
+  "list": { "name": "Tabla", "columns": "Columnas", "key": "Clave", "actions": "Acciones", "addColumns": "Agregar columnas a {name}", "delete": "Borrar {name}" },
+  "extend": { "title": "Agregar columnas", "submit": "Guardar columnas" },
+  "delete": { "title": "Borrar tabla", "body": "Se borrará la tabla “{name}” junto con todas sus filas. Esta acción no se puede deshacer.", "confirm": "Borrar definitivamente" },
+  "errors": { "load": "No se pudieron cargar los datos.", "generic": "No se pudo completar la operación.", "duplicate": "Ya existe una tabla con ese nombre." },
+  "panel": { "title": "Datos relacionales", "loading": "Cargando…", "empty": "Este contacto no tiene filas en esta tabla.", "none": "—", "yes": "Sí", "no": "No" },
+  "actions": {
+    "title": "Privacidad (GDPR)",
+    "export": "Exportar datos del contacto",
+    "exportPending": "Generando la exportación…",
+    "exportFailed": "La exportación falló.",
+    "exportLink": "Descargar datos del contacto",
+    "forgetWarning": "Olvidar al contacto lo borra de forma permanente e irreversible.",
+    "forgetLabel": "Para confirmar, escribí el email del contacto: {email}",
+    "forget": "Olvidar contacto",
+    "forgetQueued": "La solicitud de olvido está en curso."
+  },
+  "gdpr": {
+    "title": "Solicitudes GDPR",
+    "empty": "No hay solicitudes GDPR.",
+    "kind": "Tipo",
+    "status": "Estado",
+    "requested": "Solicitada",
+    "completed": "Completada",
+    "none": "—",
+    "kinds": { "export": "Exportación", "forget": "Olvido" },
+    "statuses": { "queued": "En cola", "running": "En curso", "done": "Completada", "failed": "Fallida" }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "title": "Relational data",
+  "empty": "There are no relational tables yet.",
+  "cancel": "Cancel",
+  "types": { "text": "Text", "number": "Number", "date": "Date", "boolean": "Yes/No", "single_choice": "Single choice", "multi_choice": "Multiple choice" },
+  "columns": { "name": "Column name", "type": "Column type", "add": "Add another column", "remove": "Remove column {n}" },
+  "create": { "title": "New table", "name": "Table name", "keyField": "Key column", "submit": "Create table" },
+  "list": { "name": "Table", "columns": "Columns", "key": "Key", "actions": "Actions", "addColumns": "Add columns to {name}", "delete": "Delete {name}" },
+  "extend": { "title": "Add columns", "submit": "Save columns" },
+  "delete": { "title": "Delete table", "body": "The table “{name}” and all of its rows will be deleted. This cannot be undone.", "confirm": "Delete permanently" },
+  "errors": { "load": "Could not load the data.", "generic": "The operation could not be completed.", "duplicate": "A table with that name already exists." },
+  "panel": { "title": "Relational data", "loading": "Loading…", "empty": "This contact has no rows in this table.", "none": "—", "yes": "Yes", "no": "No" },
+  "actions": {
+    "title": "Privacy (GDPR)",
+    "export": "Export contact data",
+    "exportPending": "Generating the export…",
+    "exportFailed": "The export failed.",
+    "exportLink": "Download contact data",
+    "forgetWarning": "Forgetting a contact deletes it permanently and irreversibly.",
+    "forgetLabel": "To confirm, type the contact's email: {email}",
+    "forget": "Forget contact",
+    "forgetQueued": "The erasure request is in progress."
+  },
+  "gdpr": {
+    "title": "GDPR requests",
+    "empty": "There are no GDPR requests.",
+    "kind": "Type",
+    "status": "Status",
+    "requested": "Requested",
+    "completed": "Completed",
+    "none": "—",
+    "kinds": { "export": "Export", "forget": "Erasure" },
+    "statuses": { "queued": "Queued", "running": "Running", "done": "Done", "failed": "Failed" }
+  }
+}
