@@ -29,7 +29,6 @@ build/
 .next/
 
 # Go
-go.sum
 
 # Generated code (F0.3.T3+, F0.7.T1+)
 packages/ts-contracts/src/gen/
