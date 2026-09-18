@@ -16,11 +16,11 @@ http:
 
     # OAuth token endpoint - rate limited
     core-oauth-token:
-      rule: "Path(`/api/v3/oauth/token`)"
+      # Traefik routers have no `methods` field; the method goes in the rule.
+      rule: "Path(`/api/v3/oauth/token`) && Method(`POST`)"
       service: core
       entryPoints: [web]
       middlewares: [secure-headers, ratelimit-ip]
-      methods: [POST]
       priority: 100
 
     # Admin API endpoints

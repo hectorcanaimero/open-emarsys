@@ -6,14 +6,16 @@ services:
     profiles: [core]
     networks: [oe]
     ports:
-      - "${ADMIN_WEB_PORT:-3000}:3000"
+      # 3000 on the host is Grafana (profile obs); both run together in `make up`.
+      - "${ADMIN_WEB_PORT:-3002}:3000"
     environment:
       NODE_ENV: production
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       ADMIN_API_URL: ${ADMIN_API_URL:-http://traefik:8080/admin/v1}
     depends_on:
       - traefik
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/es"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/es"]
       interval: 10s
       timeout: 5s
       retries: 10

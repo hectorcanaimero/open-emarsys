@@ -7,7 +7,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import developerEs from '../../../../../../messages/es/developer.json';
 import { CredentialsView } from './credentials-view';
 
-const BASE_URL = 'http://localhost:8080/admin/v1';
+// Browser calls go through the same-origin proxy (src/app/api/admin).
+const BASE_URL = '/api/admin';
 
 const activeClient = {
   id: '11111111-1111-1111-1111-111111111111',

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Dev-only secrets so `make up` works on a clean clone (never use these in production): an
+# RS256 key for core's JWTs, a service-credentials file and an encryption key, under the
+# gitignored deploy/compose/.secrets/. Idempotent, and it only replaces the placeholders
+# .env.example ships with, so values you set yourself in deploy/compose/.env are kept.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+env_file=deploy/compose/.env
+dir="$PWD/deploy/compose/.secrets"
+mkdir -p "$dir/jwt"
+
+# core's container runs as uid 1001, so the mounted files must be world-readable.
+[ -f "$dir/jwt/k1.pem" ] || openssl genrsa -out "$dir/jwt/k1.pem" 2048 2>/dev/null
+[ -f "$dir/service-credentials.json" ] ||
+  printf '{"segments":{"secret":"%s","scopes":["contacts:view"]}}\n' "$(openssl rand -hex 16)" \
+    > "$dir/service-credentials.json"
+chmod 644 "$dir/jwt/k1.pem" "$dir/service-credentials.json"
+
+replace_placeholder() { # var, placeholder prefix, value
+  if grep -q "^$1=$2" "$env_file"; then sed -i "s|^$1=.*|$1=$3|" "$env_file"; fi
+}
+replace_placeholder CORE_JWT_KEYS_DIR /abs/path "$dir/jwt"
+replace_placeholder CORE_SERVICE_CREDENTIALS /abs/path "$dir/service-credentials.json"
+replace_placeholder CORE_ENCRYPTION_KEY change-me "$(openssl rand -base64 32)"

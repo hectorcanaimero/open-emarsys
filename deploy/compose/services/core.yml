@@ -1,5 +1,22 @@
 services:
+  # Applies core's Prisma migrations before core starts: nothing else does, and without
+  # them `make seed` finds no identity tables. Same image as core (built once, cached).
+  core-migrate:
+    image: open-emarsys-core:dev
+    build:
+      context: ../../..
+      dockerfile: services/core/Dockerfile
+    profiles: [core]
+    networks: [oe]
+    command: ["node_modules/.bin/prisma", "migrate", "deploy", "--schema", "prisma/schema"]
+    environment:
+      DATABASE_URL: postgres://core:${OE_PG_CORE_PASSWORD}@postgres:5432/${OE_PG_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   core:
+    image: open-emarsys-core:dev
     build:
       context: ../../..
       dockerfile: services/core/Dockerfile
@@ -17,10 +34,14 @@ services:
       CORE_ENCRYPTION_KEY: ${CORE_ENCRYPTION_KEY:?set CORE_ENCRYPTION_KEY in .env}
       CORE_SERVICE_CREDENTIALS: /run/secrets/service-credentials.json
       SMTP_URL: smtp://mailpit:1025
+      # startOtel() exports over OTLP; the SDK default (localhost:4318) is nothing inside the container.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     volumes:
       - ${CORE_JWT_KEYS_DIR:?set CORE_JWT_KEYS_DIR in .env}:/run/secrets/jwt:ro
       - ${CORE_SERVICE_CREDENTIALS:?set CORE_SERVICE_CREDENTIALS in .env}:/run/secrets/service-credentials.json:ro
     depends_on:
+      core-migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       nats:

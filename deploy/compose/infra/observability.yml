@@ -14,11 +14,8 @@ services:
         condition: service_healthy
       loki:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:13133/"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+    # No healthcheck: the contrib image is distroless (no wget/curl/shell to probe with), and
+    # nothing waits on it being healthy. Its health_check extension on :13133 is still up.
     deploy:
       resources:
         limits:

@@ -36,8 +36,10 @@ test('4. admin invites, invitee accepts via the mailed link, gets Viewer and get
   await expect(row.getByRole('cell', { name: 'Viewer', exact: true })).toBeVisible();
 
   const viewerToken = await tokenFor(email, TEST_PASSWORD);
-  const roles = await roleIds(viewerToken);
-  const me = (await admin('GET', '/users?limit=200', await tokenFor(demo.email, demo.password))).body.items.find(
+  // Viewer only reads the marketing modules, not identity, so role ids come from the admin.
+  const adminToken = await tokenFor(demo.email, demo.password);
+  const roles = await roleIds(adminToken);
+  const me = (await admin('GET', '/users?limit=200', adminToken)).body.items.find(
     (u: { email: string }) => u.email === email
   );
   expect(me.role_ids).toEqual([roles.Viewer]);

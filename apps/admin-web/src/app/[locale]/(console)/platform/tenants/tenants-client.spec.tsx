@@ -8,7 +8,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import platformEs from '../../../../../../messages/es/platform.json';
 import { TenantsClient } from './tenants-client';
 
-const BASE_URL = 'http://localhost:8080/admin/v1';
+// Browser calls go through the same-origin proxy (src/app/api/admin).
+const BASE_URL = '/api/admin';
 
 const activeTenant = {
   id: '0191e4a2-1111-7000-8000-000000000001',

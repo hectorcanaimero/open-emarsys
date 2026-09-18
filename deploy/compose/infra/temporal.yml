@@ -22,7 +22,8 @@ services:
     ports:
       - "${OE_TEMPORAL_PORT:-7233}:7233"
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/7233 && exec 3<&-'"]
+      # auto-setup listens on the container IP, not 127.0.0.1, so a localhost probe never passes.
+      test: ["CMD-SHELL", "tctl --address $$(hostname -i):7233 cluster health | grep -q SERVING"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -50,7 +51,7 @@ services:
 
   # Crea el namespace open-emarsys (deploy/temporal/init/create-namespace.sh).
   temporal-init:
-    image: temporalio/admin-tools:1.24.2
+    image: temporalio/admin-tools:1.24.2-tctl-1.18.1-cli-1.0.0
     profiles: [core, data, ai]
     networks: [oe]
     depends_on:

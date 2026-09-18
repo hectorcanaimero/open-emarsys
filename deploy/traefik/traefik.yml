@@ -1,6 +1,10 @@
 entryPoints:
   web:
     address: ":8080"
+  # The dashboard gets its own entrypoint: on `web` its PathPrefix(`/api`) rule outranked
+  # admin-web's catch-all and swallowed the console's /api/* routes (login included).
+  dashboard:
+    address: ":8081"
 
 # Habilita /ping en el entrypoint web (sin auth, solo 200 OK) para healthchecks
 # y para el criterio de aceptación de F0.2.T3.

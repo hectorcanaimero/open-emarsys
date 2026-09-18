@@ -1,6 +1,6 @@
 services:
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     profiles: [core, data, ai]
     networks: [oe]
     command: ["server", "/data", "--console-address", ":9001"]
@@ -23,7 +23,7 @@ services:
           memory: 512m
 
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     profiles: [core, data, ai]
     networks: [oe]
     depends_on:

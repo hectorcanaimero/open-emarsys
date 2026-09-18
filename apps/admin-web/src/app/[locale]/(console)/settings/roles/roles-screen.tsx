@@ -113,7 +113,7 @@ export function RolesScreen() {
                       ({role.permissions.length})
                     </span>
                     {isDefault ? (
-                      <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">
                         {t('defaultBadge')}
                       </span>
                     ) : null}

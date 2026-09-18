@@ -8,7 +8,8 @@ import settingsEs from '../../../../../../messages/es/settings.json';
 import { server } from '../lib/msw-server';
 import { RolesScreen } from './roles-screen';
 
-const BASE = 'http://localhost:8080/admin/v1';
+// Browser calls go through the same-origin proxy (src/app/api/admin).
+const BASE = '/api/admin';
 
 const adminRole = {
   id: 'role-admin',
