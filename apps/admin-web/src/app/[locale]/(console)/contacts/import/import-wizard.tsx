@@ -56,7 +56,7 @@ function PreviewTable({ columns, rows, caption }: { columns: string[]; rows: str
 }
 
 export function ImportWizard() {
-  const t = useTranslations('contactsImport.wizard');
+  const t = useTranslations('contacts-import.wizard');
   const locale = useLocale();
 
   const [step, setStep] = useState<Step>('upload');

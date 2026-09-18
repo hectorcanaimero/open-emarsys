@@ -9,7 +9,7 @@ const POLL_MS = 2000;
 
 /** Live view of one job: polls every 2 s until it leaves queued/running. */
 export function JobView({ jobId }: { jobId: string }) {
-  const t = useTranslations('contactsImport.job');
+  const t = useTranslations('contacts-import.job');
   const [job, setJob] = useState<Job | null>(null);
   const [failed, setFailed] = useState(false);
 

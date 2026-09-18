@@ -16,6 +16,9 @@ while :; do
         [ "$state" = exited ] || pending=1 ;;
       *)
         if [ "$health" = unhealthy ] || [ "$state" = exited ]; then echo "$svc is $state${health:+ ($health)}" >&2; exit 1; fi
+        # A crash loop can be caught while "running"; any restart means it is not up.
+        restarts=$(docker inspect -f '{{.RestartCount}}' "$("${compose[@]}" ps -q "$svc")" 2>/dev/null || echo 0)
+        if [ "${restarts:-0}" -gt 0 ]; then echo "$svc restarted $restarts time(s): see docker logs" >&2; exit 1; fi
         { [ "$state" = running ] && [ "$health" != starting ]; } || pending=1 ;;
     esac
   done < <("${compose[@]}" ps -a --format '{{.Service}} {{.State}} {{if .Health}}{{.Health}}{{else}}-{{end}} {{.ExitCode}}')

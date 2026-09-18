@@ -81,7 +81,7 @@ afterAll(() => server.close());
 
 const wrap = (ui: React.ReactNode) =>
   render(
-    <NextIntlClientProvider locale="es" messages={{ contactsImport: es }} timeZone="UTC">
+    <NextIntlClientProvider locale="es" messages={{ 'contacts-import': es }} timeZone="UTC">
       {ui}
     </NextIntlClientProvider>
   );

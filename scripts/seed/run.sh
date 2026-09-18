@@ -10,6 +10,11 @@ set -a
 [ -f .env.local ] && . .env.local
 set +a
 
+# Seeds run on the host (core's CLI through tsx), so on a clean clone they need the
+# workspace installed and core's Prisma client generated first.
+pnpm install --frozen-lockfile --silent
+pnpm --filter @oe/core run generate >/dev/null
+
 shopt -s nullglob
 for seed in scripts/seed/*/seed.*; do
   echo "==> $seed"
