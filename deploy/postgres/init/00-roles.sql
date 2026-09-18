@@ -29,6 +29,16 @@ CREATE ROLE loyalty    LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PAS
 CREATE ROLE connectors LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'connectors_password';
 CREATE ROLE temporal   LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD :'temporal_password';
 
+-- Rol sin login que `core` asume vía `SET LOCAL ROLE` (@oe/ts-common/prisma-tenant
+-- withSystemScope, F0.6.T3): filas sin tenant (el operador de plataforma, o tenants
+-- antes de existir) nunca calzan con la política tenant_isolation, así que el módulo de
+-- tenants necesita un rol BYPASSRLS explícito para leerlas y escribirlas. `WITH INHERIT
+-- FALSE` (PG16+) is required: a plain membership would make `core` automatically inherit
+-- core_system's table grants at all times, silently undoing the audit_log UPDATE/DELETE
+-- revoke below. `core` only gets those privileges by explicitly switching role.
+CREATE ROLE core_system NOLOGIN BYPASSRLS;
+GRANT core_system TO core WITH INHERIT FALSE;
+
 -- Schemas del rol core: identity, contacts, events_registry, catalog, devices, inbox.
 CREATE SCHEMA IF NOT EXISTS identity        AUTHORIZATION core;
 CREATE SCHEMA IF NOT EXISTS contacts        AUTHORIZATION core;
@@ -37,6 +47,13 @@ CREATE SCHEMA IF NOT EXISTS catalog         AUTHORIZATION core;
 CREATE SCHEMA IF NOT EXISTS devices         AUTHORIZATION core;
 CREATE SCHEMA IF NOT EXISTS inbox           AUTHORIZATION core;
 ALTER ROLE core SET search_path = identity, contacts, events_registry, catalog, devices, inbox;
+
+-- BYPASSRLS alone skips policies, not the ordinary schema/table grants: `core_system` still
+-- needs privileges of its own on the tables `core`'s migrations create (SET ROLE does not
+-- inherit them). Scoped to `identity`, the only schema the tenants module touches.
+GRANT USAGE ON SCHEMA identity TO core_system;
+ALTER DEFAULT PRIVILEGES FOR ROLE core IN SCHEMA identity
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO core_system;
 
 -- Un schema homónimo por cada uno de los demás roles/servicios.
 CREATE SCHEMA IF NOT EXISTS importer   AUTHORIZATION importer;
