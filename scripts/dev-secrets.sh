@@ -35,3 +35,13 @@ jq --arg s "$importer_secret" \
   '.importer = {secret: $s, scopes: (.importer.scopes // ["contacts:view", "contacts:edit"])}' \
   "$creds" > "$tmp" && mv "$tmp" "$creds"
 chmod 644 "$creds"
+
+# Per-machine overrides no clone should carry (say, a host where port 8080 is taken):
+# KEY=VALUE lines in ~/.config/open-emarsys/local.env win over .env.example's defaults.
+local_env="${OE_LOCAL_ENV:-$HOME/.config/open-emarsys/local.env}"
+if [ -f "$local_env" ]; then
+  while IFS='=' read -r key value; do
+    case "$key" in '' | \#*) continue ;; esac
+    if grep -q "^$key=" "$env_file"; then sed -i "s|^$key=.*|$key=$value|" "$env_file"; else echo "$key=$value" >> "$env_file"; fi
+  done < "$local_env"
+fi
