@@ -12,7 +12,6 @@ import { ProblemJsonFilter } from '@oe/ts-common/http';
 import { PrismaClient } from '@prisma/client';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { authenticator } from 'otplib';
-import { Client } from 'pg';
 import { ARGON2_OPTIONS, IdentityAuthModule, JwtSigner } from './auth.module.js';
 
 jest.setTimeout(180_000);
@@ -24,13 +23,6 @@ const ISSUER = 'open-emarsys/core';
 const PASSWORD = 'correct horse battery staple';
 
 // The BYPASSRLS role auth runs its pre-tenant lookups under (withSystemScope).
-const SYSTEM_ROLE_SQL = `
-  create role core_system nologin bypassrls;
-  grant core_system to core;
-  grant usage on schema identity to core_system;
-  grant select, insert, update, delete on all tables in schema identity to core_system;
-`;
-
 describe('auth (login, MFA, sessions, JWKS)', () => {
   let container: StartedPostgreSqlContainer;
   let db: PrismaClient;
@@ -85,11 +77,6 @@ describe('auth (login, MFA, sessions, JWKS)', () => {
       env: { ...process.env, DATABASE_URL: url },
       stdio: 'inherit',
     });
-    const su = new Client({ connectionString: container.getConnectionUri() });
-    await su.connect();
-    await su.query(SYSTEM_ROLE_SQL);
-    await su.end();
-
     // Seed with the superuser (RLS does not apply).
     db = new PrismaClient({ datasourceUrl: `${container.getConnectionUri()}?schema=identity` });
     for (const [name, status] of [['acme', 'active'], ['frozen', 'suspended']] as const) {
