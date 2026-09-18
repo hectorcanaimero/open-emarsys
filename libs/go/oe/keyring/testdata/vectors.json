@@ -1,0 +1,35 @@
+{
+  "master_keys": "dev1:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "master_key_id": "dev1",
+  "derive": [
+    {
+      "purpose": "track",
+      "tenant_id": "00000000-0000-4000-8000-000000000001",
+      "key_hex": "6346204456ab3f96c28a582f92aa31fc5213c48dcd748781e50a8f7e0a7bdf39"
+    },
+    {
+      "purpose": "track",
+      "tenant_id": "00000000-0000-4000-8000-000000000002",
+      "key_hex": "b772cc158249493fa34126c197345dd1ff4b46247e101eaf2a9f59096f29e224"
+    },
+    {
+      "purpose": "dkim",
+      "tenant_id": "00000000-0000-4000-8000-000000000001",
+      "key_hex": "249d610eae06e3936e081ba96a058840439aeadc4eec7888aa7dec1584f9c5c9"
+    }
+  ],
+  "seal": [
+    {
+      "purpose": "dkim",
+      "plaintext": "hola, mundo",
+      "nonce_hex": "000102030405060708090a0b",
+      "sealed": "v1.dev1.AAECAwQFBgcICQoL.5Q48Hhzle3Z-t6WbJa-37RzsUFALFAb6kjoC"
+    },
+    {
+      "purpose": "webhook",
+      "plaintext": "",
+      "nonce_hex": "0b0a09080706050403020100",
+      "sealed": "v1.dev1.CwoJCAcGBQQDAgEA.u1ErHviQNcsLrGdgz5Bk8Q"
+    }
+  ]
+}
