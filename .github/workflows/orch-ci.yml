@@ -20,6 +20,8 @@ jobs:
       # (early scaffold) installs without --frozen-lockfile instead of failing.
       - if: hashFiles('package.json') != ''
         uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
       - if: hashFiles('package.json') != ''
         uses: actions/setup-node@v4
         with:
