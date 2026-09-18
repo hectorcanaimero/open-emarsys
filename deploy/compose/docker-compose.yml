@@ -21,3 +21,5 @@ include:
   - infra/temporal.yml
   - infra/traefik.yml
   - infra/observability.yml
+  - services/core.yml
+  - services/admin-web.yml
