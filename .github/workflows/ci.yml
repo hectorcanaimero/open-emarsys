@@ -131,23 +131,43 @@ jobs:
       - if: hashFiles('pyproject.toml') == ''
         run: echo "No pyproject.toml yet; skipping Python lint/test."
 
+  # Mandatory since F0.3.T3: validates contracts, lints/breaking-checks the (still
+  # empty) proto module, and asserts `make codegen` is idempotent.
   contracts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
-        uses: pnpm/action-setup@v4
-      - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # The validator imports ajv and swagger-parser from the root devDependencies.
-      - if: hashFiles('scripts/codegen/validate-contracts.mjs') != ''
-        run: |
-          pnpm install
-          make contracts
+      - uses: bufbuild/buf-setup-action@v1
 
-      - if: hashFiles('scripts/codegen/validate-contracts.mjs') == ''
-        run: echo "scripts/codegen/validate-contracts.mjs not found yet (F0.3.T3); skipping."
+      # The validator imports ajv and swagger-parser, and ts-contracts' generate
+      # script imports openapi-typescript / json-schema-to-typescript, all from
+      # devDependencies.
+      - run: pnpm install --frozen-lockfile
+
+      - name: make contracts (validate event schemas and OpenAPI)
+        run: make contracts
+
+      # buf errors on a module with zero .proto files, and there are none until the
+      # first gRPC service lands; lint/breaking turn on by themselves when one does.
+      - name: buf lint + breaking against base branch
+        run: |
+          if [ -z "$(find proto -name '*.proto' -print -quit)" ]; then
+            echo "No .proto files yet; skipping buf lint/breaking."
+            exit 0
+          fi
+          buf lint proto
+          git fetch origin "${{ github.event.pull_request.base.ref || 'main' }}:base-branch"
+          buf breaking proto --against '.git#branch=base-branch,subdir=proto'
+
+      - name: make codegen (must not produce diffs)
+        run: |
+          make codegen
+          git diff --exit-code
