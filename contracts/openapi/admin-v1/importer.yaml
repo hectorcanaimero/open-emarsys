@@ -1,0 +1,416 @@
+openapi: 3.1.0
+info:
+  title: open-emarsys admin API — importer
+  version: 1.0.0
+  summary: Console API owned by importer for contact imports, exports and jobs (contract C3).
+  description: |
+    Follows the conventions of `admin-v1/identity.yaml`: plain JSON, RFC 9457
+    `application/problem+json` errors, cursor pagination `?cursor&limit` → `{ items, next_cursor }`,
+    user JWT as `Authorization: Bearer`, and `x-permission` naming the `module:action` required.
+
+    Import flow: `POST /imports/upload-url` → `PUT` the CSV to `url` → `POST /imports` with the
+    `object_key` → `POST /imports/{id}/preview` → `POST /imports/{id}/start` → poll `GET /jobs/{id}`.
+servers:
+  - url: /admin/v1
+security:
+  - bearerJwt: []
+tags:
+  - name: imports
+    description: CSV imports into contacts, lists or relational tables.
+  - name: exports
+    description: Contact exports to CSV.
+  - name: jobs
+    description: Import and export jobs.
+paths:
+  /imports/upload-url:
+    post:
+      tags: [imports]
+      operationId: createImportUploadUrl
+      summary: Get a presigned upload URL
+      description: Presigned `PUT` URL into the `imports` bucket, scoped to the caller's tenant.
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename]
+              properties:
+                filename: { type: string, minLength: 1, maxLength: 255 }
+                content_type: { type: string, default: text/csv }
+      responses:
+        '201':
+          description: Upload URL issued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadUrl' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /imports:
+    post:
+      tags: [imports]
+      operationId: createImport
+      summary: Create an import job from an uploaded file
+      description: The job stays in `draft` until `POST /imports/{id}/start`.
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [object_key]
+              properties:
+                object_key: { type: string, description: '`object_key` returned by `POST /imports/upload-url`.' }
+                filename: { type: string, maxLength: 255 }
+      responses:
+        '201':
+          description: Import job created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /imports/{id}/preview:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [imports]
+      operationId: previewImport
+      summary: Preview the first 20 rows
+      description: Detects delimiter and encoding unless given, and returns the detected columns and the first 20 data rows.
+      x-permission: contacts:edit
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CsvOptions' }
+      responses:
+        '200':
+          description: Preview.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportPreview' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /imports/{id}/start:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [imports]
+      operationId: startImport
+      summary: Start a draft import
+      description: Queues the job. `409` if it is not in `draft`.
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportStart' }
+      responses:
+        '202':
+          description: Job queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /exports:
+    post:
+      tags: [exports]
+      operationId: createExport
+      summary: Export contacts to CSV
+      description: Header row uses each field's `api_name`; choice values are written as labels in the tenant's language.
+      x-permission: contacts:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportCreate' }
+      responses:
+        '202':
+          description: Export job queued.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /jobs:
+    get:
+      tags: [jobs]
+      operationId: listJobs
+      summary: List jobs
+      description: Newest first.
+      x-permission: contacts:view
+      parameters:
+        - name: kind
+          in: query
+          schema: { $ref: '#/components/schemas/JobKind' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/JobStatus' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of jobs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /jobs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [jobs]
+      operationId: getJob
+      summary: Get a job
+      description: Signed URLs are re-issued on every read with a fresh expiration.
+      x-permission: contacts:view
+      responses:
+        '200':
+          description: The job.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /jobs/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [jobs]
+      operationId: cancelJob
+      summary: Cancel a job
+      description: Rows already written stay written. `409` if the job already finished.
+      x-permission: contacts:edit
+      responses:
+        '202':
+          description: Cancellation requested.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: RS256 user JWT; see `JwtClaims` in `admin-v1/identity.yaml`.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor from a previous page's `next_cursor`.
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+  schemas:
+    UploadUrl:
+      type: object
+      required: [url, object_key, expires_at]
+      properties:
+        url: { type: string, format: uri, description: Presigned `PUT` URL. }
+        object_key: { type: string }
+        expires_at: { type: string, format: date-time }
+    CsvOptions:
+      type: object
+      properties:
+        delimiter: { type: string, enum: [',', ';', "\t", '|'] }
+        encoding: { type: string, enum: [utf-8, latin-1] }
+        has_header: { type: boolean, default: true }
+    ImportPreview:
+      type: object
+      required: [delimiter, encoding, has_header, columns, rows]
+      properties:
+        delimiter: { type: string }
+        encoding: { type: string, enum: [utf-8, latin-1] }
+        has_header: { type: boolean }
+        columns:
+          type: array
+          description: Header names, or `column_1..n` without header.
+          items: { type: string }
+        rows:
+          type: array
+          maxItems: 20
+          items: { type: array, items: { type: string } }
+    ImportMode:
+      type: string
+      description: '`create` only inserts new contacts, `update` only changes existing ones, `upsert` does both.'
+      enum: [create, update, upsert]
+    ImportTarget:
+      type: string
+      description: '`contacts`, `list:<uuid>` (add matched contacts to a list) or `relational:<uuid>` (rows of a relational table).'
+      pattern: '^(contacts|list:[0-9a-fA-F-]{36}|relational:[0-9a-fA-F-]{36})$'
+    KeyId:
+      type: string
+      description: Field ID that identifies the contact (`"3"` email, `"4"` external_id, a custom unique field) or `id` for the internal UUID.
+      pattern: '^(id|[1-9][0-9]*)$'
+      examples: ['3']
+    ImportStart:
+      allOf:
+        - $ref: '#/components/schemas/CsvOptions'
+        - type: object
+          required: [mapping, key_id, mode, target]
+          properties:
+            mapping:
+              type: object
+              description: |
+                CSV column → destination. For `contacts` and `list:` targets the destination is a
+                field ID as a string; for `relational:` it is a column name of the table. The
+                column mapped to `key_id` identifies the contact. Unmapped columns are ignored.
+              minProperties: 1
+              additionalProperties: { type: string, minLength: 1 }
+            key_id: { $ref: '#/components/schemas/KeyId' }
+            mode: { $ref: '#/components/schemas/ImportMode' }
+            target: { $ref: '#/components/schemas/ImportTarget' }
+    ExportCreate:
+      type: object
+      required: [fields, scope]
+      properties:
+        fields:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        scope:
+          type: string
+          description: '`all` or `list:<uuid>`.'
+          pattern: '^(all|list:[0-9a-fA-F-]{36})$'
+        format: { type: string, enum: [csv], default: csv }
+    JobKind:
+      type: string
+      enum: [import, export]
+    JobStatus:
+      type: string
+      description: '`draft` applies to imports not yet started.'
+      enum: [draft, queued, running, completed, failed, cancelled]
+    JobProgress:
+      type: object
+      required: [rows_read, rows_ok, rows_failed]
+      properties:
+        rows_read: { type: integer, minimum: 0 }
+        rows_ok: { type: integer, minimum: 0 }
+        rows_failed: { type: integer, minimum: 0 }
+        updated_at: { type: string, format: date-time }
+    Job:
+      type: object
+      required:
+        - id
+        - kind
+        - status
+        - params
+        - progress
+        - result_url
+        - result_url_expires_at
+        - error_report_url
+        - error_report_url_expires_at
+        - created_by
+        - created_at
+        - finished_at
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/JobKind' }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        params:
+          type: object
+          description: Creation parameters (`ImportStart` plus `object_key`/`filename` for imports, `ExportCreate` for exports).
+          additionalProperties: true
+        progress: { $ref: '#/components/schemas/JobProgress' }
+        result_url:
+          type: [string, 'null']
+          format: uri
+          description: Presigned download of the export CSV.
+        result_url_expires_at: { type: [string, 'null'], format: date-time }
+        error_report_url:
+          type: [string, 'null']
+          format: uri
+          description: Presigned download of `errors.csv` (original row, row number, reason).
+        error_report_url_expires_at: { type: [string, 'null'], format: date-time }
+        error: { type: [string, 'null'], description: Reason the whole job failed. }
+        created_by: { type: [string, 'null'], format: uuid }
+        created_at: { type: string, format: date-time }
+        started_at: { type: [string, 'null'], format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
+    JobPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Job' } }
+        next_cursor: { type: [string, 'null'] }
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        errors:
+          type: array
+          description: Field-level validation errors (extension member).
+          items:
+            type: object
+            required: [pointer, detail]
+            properties:
+              pointer:
+                type: string
+                description: JSON Pointer into the request body.
+              detail: { type: string }
+  responses:
+    BadRequest:
+      description: Validation failed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: The caller lacks the required permission.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found in the caller's tenant.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: The job is not in a state that allows this action.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

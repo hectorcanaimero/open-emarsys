@@ -1,0 +1,1021 @@
+openapi: 3.1.0
+info:
+  title: open-emarsys admin API — contacts
+  version: 1.0.0
+  summary: Console API owned by core for fields, contacts, lists, consents, relational data and GDPR (contract C3).
+  description: |
+    Follows the conventions of `admin-v1/identity.yaml`: plain JSON, RFC 9457
+    `application/problem+json` errors, cursor pagination `?cursor&limit` → `{ items, next_cursor }`,
+    user JWT as `Authorization: Bearer`, and `x-permission` naming the `module:action` required.
+
+    Contact data is a map keyed by field ID as a string (`{"3": "ana@example.com", "1": "Ana"}`).
+    System field IDs are fixed (1–99, see `contracts/dsl/system-fields.json`); custom fields start
+    at 1000 and never change ID. Current consent lives in fields 31 (email), 32 (SMS) and 33 (push).
+servers:
+  - url: /admin/v1
+security:
+  - bearerJwt: []
+tags:
+  - name: fields
+    description: Field definitions (system and custom).
+  - name: contacts
+    description: Search, profile and edit of contacts.
+  - name: consents
+    description: Per-channel consent history.
+  - name: lists
+    description: Static contact lists and their members.
+  - name: relational
+    description: Relational tables (rows linked to a contact).
+  - name: gdpr
+    description: Access and erasure requests.
+paths:
+  /fields:
+    get:
+      tags: [fields]
+      operationId: listFields
+      summary: List field definitions
+      description: System and custom fields of the caller's tenant, ordered by field ID. Not paginated.
+      x-permission: contacts:view
+      parameters:
+        - name: include_deleted
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: All fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Field' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [fields]
+      operationId: createField
+      summary: Create a custom field
+      description: Assigns the next custom field ID (≥ 1000). `api_name` is unique per tenant.
+      x-permission: contacts:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FieldCreate' }
+      responses:
+        '201':
+          description: Field created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Field' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /fields/{fieldId}:
+    parameters:
+      - $ref: '#/components/parameters/FieldId'
+    patch:
+      tags: [fields]
+      operationId: updateField
+      summary: Rename or edit a field
+      description: |
+        Renaming never changes `field_id`. System fields only accept `labels` (and choice
+        labels); `type` and `unique` are immutable. Existing choice IDs are kept; new choices
+        get new IDs.
+      x-permission: contacts:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FieldUpdate' }
+      responses:
+        '200':
+          description: Field updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Field' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [fields]
+      operationId: deleteField
+      summary: Delete a custom field
+      description: |
+        Only custom fields not in use by lists can be deleted (`409` otherwise; system fields
+        are `403`). The field is marked deleted and its key is removed from contact data
+        asynchronously.
+      x-permission: contacts:admin
+      responses:
+        '204': { description: Field deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /contacts:
+    get:
+      tags: [contacts]
+      operationId: searchContacts
+      summary: Search contacts
+      description: |
+        `q` matches an email prefix, first/last name or `external_id`. `filters` are ANDed.
+        Ordered by `(updated_at, id)` descending.
+      x-permission: contacts:view
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: filters
+          in: query
+          description: |
+            Repeatable simple filter `<fieldId>:<op>:<value>`, e.g.
+            `?filters=9:eq:AR&filters=6:gte:1990-01-01`. `empty` and `not_empty` take no value
+            (`9:empty:`).
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 10
+            items:
+              type: string
+              pattern: '^[1-9][0-9]*:(eq|neq|contains|starts_with|gt|gte|lt|lte|empty|not_empty):.*$'
+        - name: fields
+          in: query
+          description: Field IDs to return per contact (default 1, 2, 3, 4).
+          style: form
+          explode: false
+          schema: { type: array, maxItems: 50, items: { type: integer, minimum: 1 } }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of contacts.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [contacts]
+      operationId: createContact
+      summary: Create a contact
+      description: Quick add from the console. Unique fields (email, external_id, custom unique) must not collide (`409`).
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContactWrite' }
+      responses:
+        '201':
+          description: Contact created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /contacts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [contacts]
+      operationId: getContact
+      summary: Get a contact profile
+      description: All fields with labels in the caller's locale, current consents and list memberships.
+      x-permission: contacts:view
+      responses:
+        '200':
+          description: Contact profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [contacts]
+      operationId: updateContact
+      summary: Update contact fields
+      description: |
+        Merge: only the sent keys change; `null` removes a key. Read-only fields are rejected.
+        Bumps `version`. Writing fields 31/32/33 also records consent history with `source: api`.
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContactWrite' }
+      responses:
+        '200':
+          description: Contact updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Contact' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [contacts]
+      operationId: deleteContact
+      summary: Delete a contact
+      description: Soft delete (`deleted_at`). For erasure use `POST /contacts/{id}/gdpr/forget`.
+      x-permission: contacts:edit
+      responses:
+        '204': { description: Contact deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contacts/{id}/consents:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [consents]
+      operationId: listContactConsents
+      summary: Consent history of a contact
+      description: Append-only history, newest first.
+      x-permission: contacts:view
+      parameters:
+        - name: channel
+          in: query
+          schema: { $ref: '#/components/schemas/ConsentChannel' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of consent changes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsentPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [consents]
+      operationId: recordContactConsent
+      summary: Record a consent change
+      description: Appends to the history and sets the current value in field 31, 32 or 33.
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConsentCreate' }
+      responses:
+        '201':
+          description: Consent recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Consent' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contacts/{id}/lists:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [lists]
+      operationId: listContactLists
+      summary: Lists a contact belongs to
+      x-permission: contacts:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of lists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactListPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contacts/{id}/relational/{tableId}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/TableId'
+    get:
+      tags: [relational]
+      operationId: listContactRelationalRows
+      summary: Relational rows of a contact in one table
+      x-permission: contacts:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of rows.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelationalRowPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contacts/{id}/gdpr/export:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [gdpr]
+      operationId: requestGdprExport
+      summary: Request a data access export
+      description: |
+        Queued in the background. When `done`, `result_url` points to a JSON with profile,
+        consent history, lists, relational rows and related audit entries; it expires in 24 h.
+      x-permission: contacts:admin
+      responses:
+        '202':
+          description: Request accepted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GdprRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contacts/{id}/gdpr/forget:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [gdpr]
+      operationId: requestGdprForget
+      summary: Request erasure of a contact
+      description: |
+        Irreversible. Queued in the background: physically deletes the contact, its unique
+        values, list memberships, relational rows and identity links, and anonymizes its
+        consent history. The request is kept with a hash of the identifier, never the email.
+      x-permission: contacts:admin
+      responses:
+        '202':
+          description: Request accepted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GdprRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /gdpr-requests:
+    get:
+      tags: [gdpr]
+      operationId: listGdprRequests
+      summary: List GDPR requests
+      description: Newest first.
+      x-permission: contacts:admin
+      parameters:
+        - name: kind
+          in: query
+          schema: { $ref: '#/components/schemas/GdprKind' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/GdprStatus' }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GdprRequestPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /lists:
+    get:
+      tags: [lists]
+      operationId: listLists
+      summary: List contact lists
+      x-permission: contacts:view
+      parameters:
+        - name: q
+          in: query
+          description: Name contains (case-insensitive).
+          schema: { type: string, maxLength: 200 }
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of lists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactListPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [lists]
+      operationId: createList
+      summary: Create a list
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContactListInput' }
+      responses:
+        '201':
+          description: List created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /lists/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [lists]
+      operationId: getList
+      summary: Get a list
+      x-permission: contacts:view
+      responses:
+        '200':
+          description: The list.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [lists]
+      operationId: updateList
+      summary: Rename a list
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContactListUpdate' }
+      responses:
+        '200':
+          description: List updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactList' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [lists]
+      operationId: deleteList
+      summary: Delete a list
+      description: Removes the list and its memberships; contacts are kept.
+      x-permission: contacts:edit
+      responses:
+        '204': { description: List deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /lists/{id}/members:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [lists]
+      operationId: listListMembers
+      summary: List members
+      description: Newest additions first.
+      x-permission: contacts:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of members.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListMemberPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [lists]
+      operationId: addListMembers
+      summary: Add contacts to a list
+      description: Idempotent; already-present contacts are not duplicated.
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListMembersChange' }
+      responses:
+        '200':
+          description: Members added.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListMembersResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [lists]
+      operationId: removeListMembers
+      summary: Remove contacts from a list
+      x-permission: contacts:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListMembersChange' }
+      responses:
+        '200':
+          description: Members removed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListMembersResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /relational-tables:
+    get:
+      tags: [relational]
+      operationId: listRelationalTables
+      summary: List relational tables
+      x-permission: contacts:view
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Page of tables.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelationalTablePage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [relational]
+      operationId: createRelationalTable
+      summary: Create a relational table
+      x-permission: contacts:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RelationalTableCreate' }
+      responses:
+        '201':
+          description: Table created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelationalTable' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /relational-tables/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [relational]
+      operationId: getRelationalTable
+      summary: Get a relational table
+      x-permission: contacts:view
+      responses:
+        '200':
+          description: The table.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelationalTable' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [relational]
+      operationId: updateRelationalTable
+      summary: Rename a table or add columns
+      description: Columns can only be added; existing columns are immutable.
+      x-permission: contacts:admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RelationalTableUpdate' }
+      responses:
+        '200':
+          description: Table updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelationalTable' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [relational]
+      operationId: deleteRelationalTable
+      summary: Delete a relational table
+      description: Deletes the table and all its rows.
+      x-permission: contacts:admin
+      responses:
+        '204': { description: Table deleted. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: RS256 user JWT; see `JwtClaims` in `admin-v1/identity.yaml`.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FieldId:
+      name: fieldId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    TableId:
+      name: tableId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque cursor from a previous page's `next_cursor`.
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+  schemas:
+    Labels:
+      type: object
+      description: Label per locale.
+      required: [es, pt, en]
+      properties:
+        es: { type: string, minLength: 1 }
+        pt: { type: string, minLength: 1 }
+        en: { type: string, minLength: 1 }
+    ApiName:
+      type: string
+      pattern: '^[a-z][a-z0-9_]{0,62}$'
+      description: snake_case, unique per tenant.
+    FieldType:
+      type: string
+      enum: [text, number, date, boolean, single_choice, multi_choice]
+    FieldChoice:
+      type: object
+      required: [id, api_name, labels]
+      properties:
+        id: { type: integer, minimum: 1, description: Stable option ID used as the stored value. }
+        api_name: { $ref: '#/components/schemas/ApiName' }
+        labels: { $ref: '#/components/schemas/Labels' }
+    FieldChoiceInput:
+      type: object
+      required: [api_name, labels]
+      properties:
+        id: { type: integer, minimum: 1, description: Omit to create a new option. }
+        api_name: { $ref: '#/components/schemas/ApiName' }
+        labels: { $ref: '#/components/schemas/Labels' }
+    Field:
+      type: object
+      required: [field_id, api_name, type, labels, choices, unique, read_only, is_system, deleted_at]
+      properties:
+        field_id: { type: integer, minimum: 1, description: '1–99 system, ≥ 1000 custom. Never changes.' }
+        api_name: { $ref: '#/components/schemas/ApiName' }
+        type: { $ref: '#/components/schemas/FieldType' }
+        labels: { $ref: '#/components/schemas/Labels' }
+        choices: { type: array, items: { $ref: '#/components/schemas/FieldChoice' } }
+        unique: { type: boolean }
+        read_only: { type: boolean }
+        is_system: { type: boolean }
+        deleted_at: { type: [string, 'null'], format: date-time }
+    FieldCreate:
+      type: object
+      required: [api_name, type, labels]
+      properties:
+        api_name: { $ref: '#/components/schemas/ApiName' }
+        type: { $ref: '#/components/schemas/FieldType' }
+        labels: { $ref: '#/components/schemas/Labels' }
+        choices:
+          type: array
+          description: Required and non-empty for `single_choice` and `multi_choice`.
+          items: { $ref: '#/components/schemas/FieldChoiceInput' }
+        unique: { type: boolean, default: false }
+    FieldUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        api_name: { $ref: '#/components/schemas/ApiName' }
+        labels: { $ref: '#/components/schemas/Labels' }
+        choices:
+          type: array
+          description: Full option list. Options with `id` are updated, without `id` are created; omitted ones are rejected if in use.
+          items: { $ref: '#/components/schemas/FieldChoiceInput' }
+    FieldValue:
+      description: |
+        Value by field type: text → string, number → number, date → `YYYY-MM-DD`, boolean →
+        boolean, single_choice → option ID, multi_choice → array of option IDs. `null` in a
+        write removes the key.
+      type: [string, number, boolean, array, 'null']
+      items: { type: integer }
+    FieldValues:
+      type: object
+      description: Contact data keyed by field ID as a string.
+      propertyNames: { pattern: '^[1-9][0-9]*$' }
+      additionalProperties: { $ref: '#/components/schemas/FieldValue' }
+    Contact:
+      type: object
+      required: [id, fields, version, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        fields: { $ref: '#/components/schemas/FieldValues' }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ContactWrite:
+      type: object
+      required: [fields]
+      properties:
+        fields: { $ref: '#/components/schemas/FieldValues' }
+    ContactProfile:
+      allOf:
+        - $ref: '#/components/schemas/Contact'
+        - type: object
+          required: [labels, consents, lists]
+          properties:
+            labels:
+              type: object
+              description: Field label in the caller's locale, keyed by field ID.
+              propertyNames: { pattern: '^[1-9][0-9]*$' }
+              additionalProperties: { type: string }
+            consents:
+              type: object
+              description: Current consent per channel.
+              required: [email, sms, push]
+              properties:
+                email: { $ref: '#/components/schemas/ConsentValue' }
+                sms: { $ref: '#/components/schemas/ConsentValue' }
+                push: { $ref: '#/components/schemas/ConsentValue' }
+            lists:
+              type: array
+              items:
+                type: object
+                required: [id, name]
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+    ConsentChannel:
+      type: string
+      enum: [email, sms, push]
+    ConsentValue:
+      description: '`1` yes, `2` no, `null` unknown.'
+      enum: [1, 2, null]
+    Consent:
+      type: object
+      required: [id, channel, value, source, text, actor_type, actor_id, changed_at]
+      properties:
+        id: { type: string, format: uuid }
+        channel: { $ref: '#/components/schemas/ConsentChannel' }
+        value: { $ref: '#/components/schemas/ConsentValue' }
+        source: { type: string, examples: [admin, api, import, form] }
+        text:
+          type: [string, 'null']
+          description: Consent text the contact accepted; `null` after a GDPR erasure.
+        actor_type: { type: string, enum: [user, api_client, service, contact] }
+        actor_id: { type: [string, 'null'] }
+        changed_at: { type: string, format: date-time }
+    ConsentCreate:
+      type: object
+      required: [channel, value, source]
+      properties:
+        channel: { $ref: '#/components/schemas/ConsentChannel' }
+        value: { $ref: '#/components/schemas/ConsentValue' }
+        source: { type: string, minLength: 1, maxLength: 100 }
+        text: { type: string, maxLength: 5000 }
+    ContactList:
+      type: object
+      required: [id, name, description, member_count, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        member_count: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ContactListInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 1000 }
+    ContactListUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 1000 }
+    ListMember:
+      type: object
+      required: [contact_id, added_at, fields]
+      properties:
+        contact_id: { type: string, format: uuid }
+        added_at: { type: string, format: date-time }
+        fields:
+          $ref: '#/components/schemas/FieldValues'
+          description: Summary fields 1, 2, 3 and 4.
+    ListMembersChange:
+      type: object
+      required: [contact_ids]
+      properties:
+        contact_ids:
+          type: array
+          minItems: 1
+          maxItems: 10000
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    ListMembersResult:
+      type: object
+      required: [changed, not_found]
+      properties:
+        changed: { type: integer, minimum: 0, description: Memberships actually added or removed. }
+        not_found:
+          type: array
+          description: IDs that are not contacts of the tenant.
+          items: { type: string, format: uuid }
+    RelationalColumn:
+      type: object
+      required: [name, type]
+      properties:
+        name: { $ref: '#/components/schemas/ApiName' }
+        type: { $ref: '#/components/schemas/FieldType' }
+    RelationalTable:
+      type: object
+      required: [id, name, key_field, columns, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/ApiName' }
+        key_field: { type: string, description: Column that identifies a row within a contact. }
+        columns: { type: array, items: { $ref: '#/components/schemas/RelationalColumn' } }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RelationalTableCreate:
+      type: object
+      required: [name, key_field, columns]
+      properties:
+        name: { $ref: '#/components/schemas/ApiName' }
+        key_field: { type: string, description: 'Must be one of `columns[].name`.' }
+        columns:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/RelationalColumn' }
+    RelationalTableUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { $ref: '#/components/schemas/ApiName' }
+        add_columns:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/RelationalColumn' }
+    RelationalRow:
+      type: object
+      required: [key, data, updated_at]
+      properties:
+        key: { type: string }
+        data:
+          type: object
+          description: Values keyed by column name, typed like `FieldValue`.
+          additionalProperties: { $ref: '#/components/schemas/FieldValue' }
+        updated_at: { type: string, format: date-time }
+    GdprKind:
+      type: string
+      enum: [export, forget]
+    GdprStatus:
+      type: string
+      enum: [queued, running, done, failed]
+    GdprRequest:
+      type: object
+      required: [id, contact_id, kind, status, requested_at, completed_at, result_url, result_expires_at]
+      properties:
+        id: { type: string, format: uuid }
+        contact_id:
+          type: [string, 'null']
+          format: uuid
+          description: '`null` once a `forget` request has completed.'
+        kind: { $ref: '#/components/schemas/GdprKind' }
+        status: { $ref: '#/components/schemas/GdprStatus' }
+        requested_by: { type: [string, 'null'], format: uuid }
+        requested_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        result_url:
+          type: [string, 'null']
+          format: uri
+          description: Presigned URL of the export JSON (`export` only).
+        result_expires_at: { type: [string, 'null'], format: date-time }
+        error: { type: [string, 'null'] }
+    ContactPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Contact' } }
+        next_cursor: { type: [string, 'null'] }
+    ConsentPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Consent' } }
+        next_cursor: { type: [string, 'null'] }
+    ContactListPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ContactList' } }
+        next_cursor: { type: [string, 'null'] }
+    ListMemberPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ListMember' } }
+        next_cursor: { type: [string, 'null'] }
+    RelationalTablePage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/RelationalTable' } }
+        next_cursor: { type: [string, 'null'] }
+    RelationalRowPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/RelationalRow' } }
+        next_cursor: { type: [string, 'null'] }
+    GdprRequestPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/GdprRequest' } }
+        next_cursor: { type: [string, 'null'] }
+    Problem:
+      type: object
+      description: RFC 9457 problem details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          default: about:blank
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+        errors:
+          type: array
+          description: Field-level validation errors (extension member).
+          items:
+            type: object
+            required: [pointer, detail]
+            properties:
+              pointer:
+                type: string
+                description: JSON Pointer into the request body.
+              detail: { type: string }
+  responses:
+    BadRequest:
+      description: Validation failed.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: Missing or invalid token.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: The caller lacks the required permission, or the resource is a protected system resource.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Resource not found in the caller's tenant.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Conflicts with the current state (duplicate unique value or name, field in use).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
