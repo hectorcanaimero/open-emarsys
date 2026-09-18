@@ -1,0 +1,69 @@
+{
+  "loading": "Loading…",
+  "errors": {
+    "load": "Could not load the data.",
+    "generic": "The operation could not be completed.",
+    "duplicate": "A contact with that unique value already exists."
+  },
+  "list": {
+    "title": "Contacts",
+    "search": "Search by email, name or external ID",
+    "results": "Results",
+    "empty": "No contacts found.",
+    "loadMore": "Load more",
+    "filter": {
+      "title": "Field filter",
+      "field": "Field",
+      "op": "Operator",
+      "value": "Value",
+      "none": "No filter",
+      "ops": {
+        "eq": "equals",
+        "neq": "does not equal",
+        "contains": "contains",
+        "starts_with": "starts with",
+        "gt": "greater than",
+        "lt": "less than",
+        "empty": "is empty",
+        "not_empty": "is not empty"
+      }
+    },
+    "add": {
+      "title": "Quick add contact",
+      "email": "Email",
+      "first": "First name",
+      "last": "Last name",
+      "submit": "Create contact"
+    }
+  },
+  "detail": { "back": "Back to contacts" },
+  "profile": {
+    "system": "System fields",
+    "custom": "Custom fields",
+    "empty": "—",
+    "yes": "Yes",
+    "no": "No",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit {name}",
+    "editShort": "Edit",
+    "updated": "Last updated: {date}"
+  },
+  "consent": {
+    "title": "Consents",
+    "channels": { "email": "Email", "sms": "SMS", "push": "Push" },
+    "channel": "Channel",
+    "value": "Value",
+    "text": "Consent text",
+    "date": "Date",
+    "source": "Source",
+    "yes": "Opted in",
+    "no": "Opted out",
+    "unknown": "Unknown",
+    "submit": "Record change",
+    "history": "Consent history",
+    "noHistory": "No changes recorded yet."
+  },
+  "lists": { "title": "Lists", "empty": "This contact is not in any list." },
+  "timeline": { "label": "Timeline" }
+}
