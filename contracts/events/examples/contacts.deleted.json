@@ -1,0 +1,12 @@
+{
+  "id": "01926f3a-9c1d-7abc-9def-0123456789a2",
+  "type": "contacts.deleted",
+  "schema_version": 1,
+  "tenant_id": "01926f00-0000-7000-8000-000000000001",
+  "occurred_at": "2026-09-18T10:05:00.000Z",
+  "source": "core",
+  "contact_id": "01926f3a-0000-7000-a000-00000000002a",
+  "data": {
+    "reason": "gdpr"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SystemFields",
+  "description": "FR-7: catalog of system contact fields with fixed field IDs 1-99. Custom fields start at 1000. field_id and api_name are unique across the catalog (checked by scripts/codegen/validate-contracts.mjs).",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["field_id", "api_name", "type", "unique", "read_only", "choices", "labels"],
+    "properties": {
+      "field_id": {
+        "description": "Stable numeric ID, key of the field in contacts.data and in event payloads.",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 99
+      },
+      "api_name": { "$ref": "#/$defs/api_name" },
+      "type": {
+        "type": "string",
+        "enum": ["text", "number", "date", "boolean", "single_choice", "multi_choice"]
+      },
+      "unique": { "description": "Value identifies at most one contact per tenant; usable as key_id.", "type": "boolean" },
+      "read_only": { "description": "Set by the platform; writes through the API are rejected.", "type": "boolean" },
+      "description": { "type": "string" },
+      "choices": {
+        "description": "Options for single_choice/multi_choice; empty for other types.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "api_name", "labels"],
+          "properties": {
+            "id": { "description": "Stable option ID stored as the field value.", "type": "integer", "minimum": 1 },
+            "api_name": { "$ref": "#/$defs/api_name" },
+            "labels": { "$ref": "#/$defs/labels" }
+          }
+        }
+      },
+      "labels": { "$ref": "#/$defs/labels" }
+    },
+    "if": { "properties": { "type": { "enum": ["single_choice", "multi_choice"] } } },
+    "then": { "properties": { "choices": { "type": "array", "minItems": 1 } } },
+    "else": { "properties": { "choices": { "type": "array", "maxItems": 0 } } }
+  },
+  "$defs": {
+    "api_name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["es", "pt", "en"],
+      "properties": {
+        "es": { "type": "string", "minLength": 1 },
+        "pt": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+[
+  { "field_id": 1, "api_name": "first_name", "type": "text", "unique": false, "read_only": false, "choices": [], "labels": { "es": "Nombre", "pt": "Nome", "en": "First name" } },
+  { "field_id": 2, "api_name": "last_name", "type": "text", "unique": false, "read_only": false, "choices": [], "labels": { "es": "Apellido", "pt": "Sobrenome", "en": "Last name" } },
+  { "field_id": 3, "api_name": "email", "type": "text", "unique": true, "read_only": false, "choices": [], "labels": { "es": "Email", "pt": "E-mail", "en": "Email" } },
+  { "field_id": 4, "api_name": "external_id", "type": "text", "unique": true, "read_only": false, "choices": [], "labels": { "es": "ID externo", "pt": "ID externo", "en": "External ID" } },
+  { "field_id": 5, "api_name": "phone", "type": "text", "unique": false, "read_only": false, "description": "E.164, e.g. +5491122334455.", "choices": [], "labels": { "es": "Teléfono", "pt": "Telefone", "en": "Phone" } },
+  { "field_id": 6, "api_name": "birth_date", "type": "date", "unique": false, "read_only": false, "choices": [], "labels": { "es": "Fecha de nacimiento", "pt": "Data de nascimento", "en": "Birth date" } },
+  {
+    "field_id": 7, "api_name": "gender", "type": "single_choice", "unique": false, "read_only": false,
+    "choices": [
+      { "id": 1, "api_name": "male", "labels": { "es": "Masculino", "pt": "Masculino", "en": "Male" } },
+      { "id": 2, "api_name": "female", "labels": { "es": "Femenino", "pt": "Feminino", "en": "Female" } },
+      { "id": 3, "api_name": "other", "labels": { "es": "Otro", "pt": "Outro", "en": "Other" } }
+    ],
+    "labels": { "es": "Género", "pt": "Gênero", "en": "Gender" }
+  },
+  { "field_id": 8, "api_name": "city", "type": "text", "unique": false, "read_only": false, "choices": [], "labels": { "es": "Ciudad", "pt": "Cidade", "en": "City" } },
+  { "field_id": 9, "api_name": "country", "type": "text", "unique": false, "read_only": false, "description": "ISO 3166-1 alpha-2, uppercase, e.g. AR.", "choices": [], "labels": { "es": "País", "pt": "País", "en": "Country" } },
+  { "field_id": 10, "api_name": "zip", "type": "text", "unique": false, "read_only": false, "choices": [], "labels": { "es": "Código postal", "pt": "CEP", "en": "ZIP code" } },
+  { "field_id": 11, "api_name": "language", "type": "text", "unique": false, "read_only": false, "description": "BCP 47 tag, e.g. es, pt-BR.", "choices": [], "labels": { "es": "Idioma", "pt": "Idioma", "en": "Language" } },
+  { "field_id": 12, "api_name": "timezone", "type": "text", "unique": false, "read_only": false, "description": "IANA time zone, e.g. America/Argentina/Buenos_Aires.", "choices": [], "labels": { "es": "Zona horaria", "pt": "Fuso horário", "en": "Time zone" } },
+  { "field_id": 13, "api_name": "company", "type": "text", "unique": false, "read_only": false, "choices": [], "labels": { "es": "Empresa", "pt": "Empresa", "en": "Company" } },
+  {
+    "field_id": 31, "api_name": "optin_email", "type": "single_choice", "unique": false, "read_only": false,
+    "description": "Current email consent; empty means unknown. History lives in contacts.consents.",
+    "choices": [
+      { "id": 1, "api_name": "yes", "labels": { "es": "Sí", "pt": "Sim", "en": "Yes" } },
+      { "id": 2, "api_name": "no", "labels": { "es": "No", "pt": "Não", "en": "No" } }
+    ],
+    "labels": { "es": "Opt-in email", "pt": "Opt-in e-mail", "en": "Email opt-in" }
+  },
+  {
+    "field_id": 32, "api_name": "optin_sms", "type": "single_choice", "unique": false, "read_only": false,
+    "description": "Current SMS consent; empty means unknown. History lives in contacts.consents.",
+    "choices": [
+      { "id": 1, "api_name": "yes", "labels": { "es": "Sí", "pt": "Sim", "en": "Yes" } },
+      { "id": 2, "api_name": "no", "labels": { "es": "No", "pt": "Não", "en": "No" } }
+    ],
+    "labels": { "es": "Opt-in SMS", "pt": "Opt-in SMS", "en": "SMS opt-in" }
+  },
+  {
+    "field_id": 33, "api_name": "optin_push", "type": "single_choice", "unique": false, "read_only": false,
+    "description": "Current push consent; empty means unknown. History lives in contacts.consents.",
+    "choices": [
+      { "id": 1, "api_name": "yes", "labels": { "es": "Sí", "pt": "Sim", "en": "Yes" } },
+      { "id": 2, "api_name": "no", "labels": { "es": "No", "pt": "Não", "en": "No" } }
+    ],
+    "labels": { "es": "Opt-in push", "pt": "Opt-in push", "en": "Push opt-in" }
+  },
+  { "field_id": 40, "api_name": "created_at", "type": "date", "unique": false, "read_only": true, "description": "RFC 3339 timestamp set on creation.", "choices": [], "labels": { "es": "Fecha de alta", "pt": "Data de criação", "en": "Created at" } },
+  { "field_id": 41, "api_name": "updated_at", "type": "date", "unique": false, "read_only": true, "description": "RFC 3339 timestamp of the last change.", "choices": [], "labels": { "es": "Última modificación", "pt": "Última modificação", "en": "Updated at" } }
+]

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ContactsUpserted",
+  "description": "FR-7: a contact was created or modified. Published by core after commit; contact_id is required. fields is the full contact snapshot, so consumers (sink, segments) can replace their copy by version.",
+  "allOf": [
+    { "$ref": "envelope.schema.json" },
+    {
+      "type": "object",
+      "required": ["contact_id"],
+      "properties": {
+        "type": { "const": "contacts.upserted" },
+        "contact_id": { "type": "string" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "fields", "changed", "lists"],
+          "properties": {
+            "version": {
+              "description": "contacts.version after this write; strictly increasing per contact.",
+              "type": "integer",
+              "minimum": 1
+            },
+            "fields": {
+              "description": "Every field the contact has, keyed by field ID (see contracts/dsl/system-fields.json). Absent keys are empty. Dates are YYYY-MM-DD (40/41 are RFC 3339), choices are option IDs, multi_choice is an array of option IDs.",
+              "type": "object",
+              "propertyNames": { "pattern": "^[1-9][0-9]*$" },
+              "additionalProperties": {
+                "anyOf": [
+                  { "type": "string" },
+                  { "type": "number" },
+                  { "type": "boolean" },
+                  { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+                ]
+              }
+            },
+            "changed": {
+              "description": "Field IDs modified by this write (including removed ones); all set keys on creation.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+            },
+            "lists": {
+              "description": "IDs of every list the contact belongs to.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string", "format": "uuid" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -66,6 +66,43 @@ for (const name of list(examplesDir, /\.json$/)) {
   }
 }
 
+// contracts/dsl/<name>.json validates against its sibling <name>.schema.json.
+const dslDir = join(root, "contracts/dsl");
+for (const name of list(dslDir, /(?<!\.schema)\.json$/)) {
+  const file = join(dslDir, name);
+  const schemaFile = join(dslDir, name.replace(/\.json$/, ".schema.json"));
+  if (!existsSync(schemaFile)) {
+    fail(file, `no schema ${relative(root, schemaFile)}`);
+    continue;
+  }
+  const schema = readJson(schemaFile);
+  const doc = readJson(file);
+  if (!schema || doc === undefined) continue;
+  let validate;
+  try {
+    validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
+  } catch (e) {
+    fail(schemaFile, `does not compile: ${e.message}`);
+    continue;
+  }
+  if (!validate(doc)) {
+    for (const err of validate.errors) fail(file, `${err.instancePath || "/"} ${err.message}`);
+  }
+}
+
+// JSON Schema cannot say "field_id/api_name unique across items".
+const systemFields = join(dslDir, "system-fields.json");
+if (existsSync(systemFields)) {
+  const fields = readJson(systemFields) ?? [];
+  for (const key of ["field_id", "api_name"]) {
+    const seen = new Set();
+    for (const f of fields) {
+      if (seen.has(f[key])) fail(systemFields, `duplicate ${key} ${f[key]}`);
+      seen.add(f[key]);
+    }
+  }
+}
+
 for (const name of list(openapiDir, /\.ya?ml$/)) {
   const file = join(openapiDir, name);
   try {

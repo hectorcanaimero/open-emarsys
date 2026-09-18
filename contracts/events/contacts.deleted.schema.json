@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ContactsDeleted",
+  "description": "FR-15: a contact was deleted, through the API or by a GDPR forget request. contact_id is required. Consumers drop or anonymize their copy.",
+  "allOf": [
+    { "$ref": "envelope.schema.json" },
+    {
+      "type": "object",
+      "required": ["contact_id"],
+      "properties": {
+        "type": { "const": "contacts.deleted" },
+        "contact_id": { "type": "string" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason"],
+          "properties": {
+            "reason": { "type": "string", "enum": ["gdpr", "api"] }
+          }
+        }
+      }
+    }
+  ]
+}
