@@ -1058,7 +1058,7 @@
       "id": "F1.4.T3",
       "phase": 1,
       "title": "Export de contactos a MinIO",
-      "description": "Reemplazar el stub de `internal/exports/routes.go` e implementar en `services/importer/internal/exports/`: `POST /admin/v1/exports` y `POST /api/v3/export` (`fields[]`, `scope: all|list:\u003cid\u003e`, `format: csv`) → job; el worker consume `GET /internal/v1/contacts/stream` de core en NDJSON y escribe un CSV (cabecera con `api_name` de cada campo, valores de choice por label en el idioma del tenant) en streaming con multipart upload al bucket `exports`, con `result_url` prefirmada que expira en 24 h (configurable) y un aviso al terminar publicado como `system.job.completed` (schema `contracts/events/system.job.completed.schema.json` + ejemplo) que la consola muestra. El scope `segment:\u003cid\u003e` se agrega en F3. Cubre FR-12.\n\nDone when: un test de integración con core simulado exporta 1 M de contactos a MinIO en streaming (memoria \u003c 150 MB), la URL descarga el CSV completo y deja de funcionar al vencer (expiración de 1 s en el test), y se publica `system.job.completed`.",
+      "description": "Reemplazar el stub de `internal/exports/routes.go` e implementar en `services/importer/internal/exports/`: `POST /admin/v1/exports` y `POST /api/v3/export` (`fields[]`, `scope: all|list:\u003cid\u003e`, `format: csv`) → job; el worker consume `GET /internal/v1/contacts/stream` de core en NDJSON y escribe un CSV (cabecera con `api_name` de cada campo, valores de choice por label en el idioma del tenant) en streaming con multipart upload al bucket `exports`, con `result_url` prefirmada que expira en 24 h (configurable) y un aviso al terminar publicado como `system.job.completed` (schema `contracts/events/system.job.completed.schema.json` + ejemplo) que la consola muestra. El scope `segment:\u003cid\u003e` se agrega en F3. Cubre FR-12.\n\n**Ampliación (bloqueo del 2026-09-18):** el CSV lleva el `api_name` de cada campo en la cabecera y los valores de opción como su etiqueta en el `default_locale` del tenant, pero el stream de core solo da `{id, fields}` con ids. Esta tarea añade primero en `contracts/openapi/internal/core.yaml` y en `services/core/src/modules/fields/` un endpoint interno (token de servicio, `/internal/v1`) que devuelve, por tenant, los campos con `api_name`, tipo y etiquetas de opción por idioma, más el `default_locale` del tenant. También cablea NATS en el importer para publicar `system.job.completed`: `natsx` en `services/importer/go.mod`, la conexión en `cmd/importer/main.go` y el cliente en `internal/jobs/env.go`.\n\nDone when: un test de integración con core simulado exporta 1 M de contactos a MinIO en streaming (memoria \u003c 150 MB), la URL descarga el CSV completo y deja de funcionar al vencer (expiración de 1 s en el test), y se publica `system.job.completed`.",
       "model": "claude/claude-sonnet-5",
       "reason": "Pipeline de streaming simple entre dos contratos ya definidos.",
       "status": "backlog",
@@ -1069,7 +1069,12 @@
       "files": [
         "services/importer/internal/exports/",
         "contracts/events/system.job.completed.schema.json",
-        "contracts/events/examples/system.job.completed.json"
+        "contracts/events/examples/system.job.completed.json",
+        "contracts/openapi/internal/core.yaml",
+        "services/core/src/modules/fields/",
+        "services/importer/go.mod",
+        "services/importer/cmd/importer/main.go",
+        "services/importer/internal/jobs/env.go"
       ],
       "specRef": "f1-base-de-contactos.md#F1.4.T3",
       "comments": []
