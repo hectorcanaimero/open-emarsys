@@ -14,7 +14,9 @@
     "pretypecheck": "pnpm run generate",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "pnpm run generate",
-    "test": "jest"
+    "test": "jest",
+    "pretest:security": "pnpm run generate",
+    "test:security": "jest test/security"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
