@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "tenants": "Tenants"
+  },
+  "tenants": {
+    "title": "Tenants",
+    "createTitle": "New tenant",
+    "editTitle": "Edit tenant",
+    "suspendTitle": "Suspend tenant",
+    "reactivateTitle": "Reactivate tenant",
+    "suspendConfirm": "Suspend tenant \"{name}\"? Its users won't be able to log in or use the API while suspended.",
+    "reactivateConfirm": "Reactivate tenant \"{name}\"?"
+  },
+  "fields": {
+    "name": "Name",
+    "timezone": "Time zone",
+    "defaultLocale": "Default language",
+    "limits": "Usage limits",
+    "maxContacts": "Max contacts",
+    "maxEmailsPerMonth": "Emails per month",
+    "maxUsers": "Max users",
+    "maxApiRequestsPerMinute": "API requests per minute",
+    "unlimitedPlaceholder": "Unlimited",
+    "status": "Status",
+    "createdAt": "Created",
+    "actions": "Actions"
+  },
+  "locales": {
+    "es": "Español",
+    "pt": "Português",
+    "en": "English"
+  },
+  "status": {
+    "active": "Active",
+    "suspended": "Suspended"
+  },
+  "actions": {
+    "newTenant": "New tenant",
+    "edit": "Edit",
+    "suspend": "Suspend",
+    "reactivate": "Reactivate",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "saving": "Saving…",
+    "retry": "Retry",
+    "loadMore": "Load more"
+  },
+  "states": {
+    "loading": "Loading…",
+    "empty": "No tenants yet. Create the first one.",
+    "error": "We couldn't load the tenants."
+  },
+  "toasts": {
+    "created": "Tenant \"{name}\" created.",
+    "updated": "Tenant \"{name}\" updated.",
+    "suspended": "Tenant \"{name}\" suspended.",
+    "reactivated": "Tenant \"{name}\" reactivated."
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "loadMoreFailed": "Couldn't load the next page.",
+    "nameRequired": "Name is required.",
+    "nameTooLong": "Name is too long.",
+    "timezoneRequired": "Time zone is required.",
+    "timezoneInvalid": "Pick a valid IANA time zone (e.g. America/Mexico_City).",
+    "localeRequired": "Pick a default language.",
+    "limitInvalid": "Enter a whole number of 0 or more, or leave it blank for unlimited."
+  }
+}

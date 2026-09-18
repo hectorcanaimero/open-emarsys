@@ -1,0 +1,70 @@
+{
+  "nav": {
+    "tenants": "Tenants"
+  },
+  "tenants": {
+    "title": "Tenants",
+    "createTitle": "Novo tenant",
+    "editTitle": "Editar tenant",
+    "suspendTitle": "Suspender tenant",
+    "reactivateTitle": "Reativar tenant",
+    "suspendConfirm": "Suspender o tenant \"{name}\"? Os usuários não poderão fazer login nem usar a API enquanto estiver suspenso.",
+    "reactivateConfirm": "Reativar o tenant \"{name}\"?"
+  },
+  "fields": {
+    "name": "Nome",
+    "timezone": "Fuso horário",
+    "defaultLocale": "Idioma padrão",
+    "limits": "Limites de uso",
+    "maxContacts": "Contatos máximos",
+    "maxEmailsPerMonth": "Envios de email por mês",
+    "maxUsers": "Usuários máximos",
+    "maxApiRequestsPerMinute": "Chamadas de API por minuto",
+    "unlimitedPlaceholder": "Sem limite",
+    "status": "Status",
+    "createdAt": "Criado",
+    "actions": "Ações"
+  },
+  "locales": {
+    "es": "Español",
+    "pt": "Português",
+    "en": "English"
+  },
+  "status": {
+    "active": "Ativo",
+    "suspended": "Suspenso"
+  },
+  "actions": {
+    "newTenant": "Novo tenant",
+    "edit": "Editar",
+    "suspend": "Suspender",
+    "reactivate": "Reativar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "save": "Salvar",
+    "saving": "Salvando…",
+    "retry": "Tentar novamente",
+    "loadMore": "Carregar mais"
+  },
+  "states": {
+    "loading": "Carregando…",
+    "empty": "Ainda não há tenants. Crie o primeiro.",
+    "error": "Não foi possível carregar os tenants."
+  },
+  "toasts": {
+    "created": "Tenant \"{name}\" criado.",
+    "updated": "Tenant \"{name}\" atualizado.",
+    "suspended": "Tenant \"{name}\" suspenso.",
+    "reactivated": "Tenant \"{name}\" reativado."
+  },
+  "errors": {
+    "generic": "Ocorreu um erro. Tente novamente.",
+    "loadMoreFailed": "Não foi possível carregar a próxima página.",
+    "nameRequired": "O nome é obrigatório.",
+    "nameTooLong": "O nome é muito longo.",
+    "timezoneRequired": "O fuso horário é obrigatório.",
+    "timezoneInvalid": "Escolha um fuso horário IANA válido (por exemplo, America/Mexico_City).",
+    "localeRequired": "Escolha um idioma padrão.",
+    "limitInvalid": "Digite um número inteiro maior ou igual a 0, ou deixe em branco para sem limite."
+  }
+}
