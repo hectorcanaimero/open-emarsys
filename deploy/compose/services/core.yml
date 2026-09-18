@@ -12,10 +12,20 @@ services:
       DATABASE_URL: postgres://core:${OE_PG_CORE_PASSWORD}@postgres:5432/${OE_PG_DB}
       NATS_URL: nats://nats:4222
       CORE_JWT_ISSUER: ${CORE_JWT_ISSUER:-open-emarsys/core}
+      # The host paths in .env are bind-mounted below; core reads the container paths.
+      CORE_JWT_KEYS_DIR: /run/secrets/jwt
+      CORE_ENCRYPTION_KEY: ${CORE_ENCRYPTION_KEY:?set CORE_ENCRYPTION_KEY in .env}
+      CORE_SERVICE_CREDENTIALS: /run/secrets/service-credentials.json
+      SMTP_URL: smtp://mailpit:1025
+    volumes:
+      - ${CORE_JWT_KEYS_DIR:?set CORE_JWT_KEYS_DIR in .env}:/run/secrets/jwt:ro
+      - ${CORE_SERVICE_CREDENTIALS:?set CORE_SERVICE_CREDENTIALS in .env}:/run/secrets/service-credentials.json:ro
     depends_on:
       postgres:
         condition: service_healthy
       nats:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/readyz"]

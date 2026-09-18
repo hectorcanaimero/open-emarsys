@@ -45,15 +45,17 @@ export const DEFAULT_TENANT_ROLES: readonly DefaultRoleSpec[] = [
   { name: 'Viewer', permissions: VIEWER_PERMISSIONS },
 ];
 
-/** Creates the default roles and their permissions for a freshly created tenant. */
+/** Creates the default roles and their permissions for a freshly created tenant; returns the `Admin` role id. */
 export async function createDefaultTenantRoles(
   tx: Prisma.TransactionClient,
   tenantId: string
-): Promise<void> {
+): Promise<string> {
+  let adminRoleId = '';
   for (const spec of DEFAULT_TENANT_ROLES) {
     const role = await tx.role.create({
       data: { tenantId, name: spec.name, isDefault: true },
     });
+    if (spec.name === 'Admin') adminRoleId = role.id;
     await tx.rolePermission.createMany({
       data: spec.permissions.map((grant) => ({
         roleId: role.id,
@@ -63,4 +65,5 @@ export async function createDefaultTenantRoles(
       })),
     });
   }
+  return adminRoleId;
 }

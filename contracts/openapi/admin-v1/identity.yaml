@@ -774,6 +774,16 @@ components:
         timezone: { type: string }
         default_locale: { $ref: '#/components/schemas/Locale' }
         limits: { $ref: '#/components/schemas/TenantLimits' }
+        admin:
+          type: object
+          description: |
+            Optional first Admin of the tenant, created in the same transaction with the
+            tenant's `Admin` role and status `active` (no invitation step).
+          required: [email, password]
+          additionalProperties: false
+          properties:
+            email: { type: string, format: email }
+            password: { type: string, format: password, minLength: 12, maxLength: 128 }
     TenantUpdate:
       type: object
       minProperties: 1
