@@ -1,10 +1,13 @@
-# Main CI for the monorepo. Runs on every push and PR, one job per
+# Main CI for the monorepo. Runs on pushes to main and on every PR, one job per
 # toolchain, each guarded so it succeeds (nothing to do) until the
 # corresponding project actually exists.
 name: ci
 
 on:
+  # Branches get CI through their PR; a bare `push` here ran every orch commit twice
+  # on a runner that takes one job at a time.
   push:
+    branches: [main]
   pull_request:
 
 jobs:
