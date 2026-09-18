@@ -16,8 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Per-job dir: the default ~/setup-pnpm is shared by every runner on a self-hosted
+      # machine, and two jobs installing pnpm at once corrupt it.
       - if: hashFiles('package.json') != ''
         uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
 
       - if: hashFiles('package.json') != ''
         uses: actions/setup-node@v4
@@ -156,6 +160,8 @@ jobs:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
       - uses: actions/setup-node@v4
         with:
           node-version: 22
