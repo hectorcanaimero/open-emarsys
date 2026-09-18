@@ -4,7 +4,7 @@
 // gitignored and regenerated here so parallel tasks never fight over it.
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { compileFromFile } from "json-schema-to-typescript";
 import openapiTS, { astToString } from "openapi-typescript";
 
@@ -24,7 +24,7 @@ mkdirSync(outEvents, { recursive: true });
 for (const file of list(openapiDir, /\.ya?ml$/)) {
   const abs = join(openapiDir, file);
   const name = basename(file).replace(/\.ya?ml$/, "");
-  const ast = await openapiTS(abs);
+  const ast = await openapiTS(pathToFileURL(abs));
   writeFileSync(join(outOpenapi, `${name}.ts`), astToString(ast));
   console.log(`generated src/gen/openapi/${name}.ts from ${relative(repoRoot, abs)}`);
 }

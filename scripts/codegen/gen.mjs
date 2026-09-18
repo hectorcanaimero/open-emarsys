@@ -2,7 +2,7 @@
 // Orchestrates all codegen: TypeScript (openapi-typescript + json-schema-to-typescript
 // via packages/ts-contracts) then Go/TS proto stubs via `buf generate`.
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,8 +18,14 @@ function run(cmd, args, cwd) {
 
 run("pnpm", ["--filter", "@oe/ts-contracts", "run", "generate"], root);
 
-if (existsSync(join(protoDir, "buf.yaml"))) {
+// buf fails outright on a module with no .proto files, so gate on the files, not
+// on the config: codegen starts working by itself once the first .proto lands.
+const hasProtos =
+  existsSync(protoDir) &&
+  readdirSync(protoDir, { recursive: true }).some((f) => String(f).endsWith(".proto"));
+
+if (hasProtos) {
   run("buf", ["generate", "--template", "buf.gen.yaml"], protoDir);
 } else {
-  console.log("proto/buf.yaml not found; skipping buf generate.");
+  console.log("No .proto files under proto/; skipping buf generate.");
 }
