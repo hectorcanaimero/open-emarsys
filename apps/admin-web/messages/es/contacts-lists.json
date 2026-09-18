@@ -1,0 +1,41 @@
+{
+  "title": "Listas",
+  "empty": "Todavía no hay listas.",
+  "cancel": "Cancelar",
+  "columns": { "name": "Nombre", "members": "Contactos", "actions": "Acciones" },
+  "create": { "nameLabel": "Nombre de la nueva lista", "submit": "Crear lista" },
+  "rename": { "label": "Nuevo nombre", "action": "Renombrar {name}", "save": "Guardar" },
+  "delete": {
+    "action": "Borrar {name}",
+    "title": "Borrar lista",
+    "body": "Se borrará la lista «{name}» y sus membresías. Los contactos se conservan.",
+    "confirm": "Borrar definitivamente"
+  },
+  "errors": {
+    "load": "No se pudo cargar la información.",
+    "generic": "No se pudo completar la operación.",
+    "duplicate": "Ya existe una lista con ese nombre."
+  },
+  "detail": {
+    "back": "Volver a listas",
+    "count": "{count, plural, =0 {Sin contactos} one {1 contacto} other {# contactos}}",
+    "import": "Importar a esta lista"
+  },
+  "add": {
+    "title": "Agregar contactos",
+    "searchLabel": "Buscar contactos por email, nombre o ID externo",
+    "search": "Buscar",
+    "none": "No se encontraron contactos.",
+    "action": "Agregar {name}"
+  },
+  "members": {
+    "title": "Miembros",
+    "empty": "Esta lista no tiene miembros.",
+    "name": "Nombre",
+    "email": "Email",
+    "select": "Seleccionar",
+    "selectOne": "Seleccionar {name}",
+    "removeSelected": "Quitar seleccionados",
+    "loadMore": "Cargar más"
+  }
+}

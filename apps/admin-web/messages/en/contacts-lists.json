@@ -1,0 +1,41 @@
+{
+  "title": "Lists",
+  "empty": "There are no lists yet.",
+  "cancel": "Cancel",
+  "columns": { "name": "Name", "members": "Contacts", "actions": "Actions" },
+  "create": { "nameLabel": "New list name", "submit": "Create list" },
+  "rename": { "label": "New name", "action": "Rename {name}", "save": "Save" },
+  "delete": {
+    "action": "Delete {name}",
+    "title": "Delete list",
+    "body": "The list “{name}” and its memberships will be deleted. Contacts are kept.",
+    "confirm": "Delete permanently"
+  },
+  "errors": {
+    "load": "Could not load the data.",
+    "generic": "The operation could not be completed.",
+    "duplicate": "A list with that name already exists."
+  },
+  "detail": {
+    "back": "Back to lists",
+    "count": "{count, plural, =0 {No contacts} one {1 contact} other {# contacts}}",
+    "import": "Import into this list"
+  },
+  "add": {
+    "title": "Add contacts",
+    "searchLabel": "Search contacts by email, name or external ID",
+    "search": "Search",
+    "none": "No contacts found.",
+    "action": "Add {name}"
+  },
+  "members": {
+    "title": "Members",
+    "empty": "This list has no members.",
+    "name": "Name",
+    "email": "Email",
+    "select": "Select",
+    "selectOne": "Select {name}",
+    "removeSelected": "Remove selected",
+    "loadMore": "Load more"
+  }
+}
