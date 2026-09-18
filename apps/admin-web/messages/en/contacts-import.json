@@ -1,0 +1,92 @@
+{
+  "wizard": {
+    "title": "Import contacts",
+    "stepsLabel": "Import steps",
+    "steps": { "upload": "File", "settings": "Destination", "mapping": "Mapping", "confirm": "Confirm", "job": "Result" },
+    "errors": {
+      "loadFailed": "Could not load fields, lists or tables.",
+      "uploadFailed": "Could not upload or read the file.",
+      "noMapping": "Map at least one column.",
+      "keyUnmapped": "No column is mapped to the key field.",
+      "startFailed": "Could not start the import."
+    },
+    "upload": {
+      "file": "CSV file",
+      "localPreview": "Local preview (first rows)",
+      "progress": "Uploading: {pct}%",
+      "submit": "Upload and continue"
+    },
+    "settings": {
+      "serverPreview": "Server preview",
+      "target": "Destination",
+      "targets": { "contacts": "Contacts", "list": "List", "relational": "Relational table" },
+      "list": "List",
+      "table": "Relational table",
+      "mode": "Mode",
+      "modes": { "create": "Create only", "update": "Update only", "upsert": "Create or update" },
+      "keyId": "Key field"
+    },
+    "mapping": {
+      "help": "Choose which field each CSV column goes to, or ignore it.",
+      "ignore": "Ignore",
+      "internalId": "Internal ID"
+    },
+    "next": "Continue",
+    "back": "Back",
+    "confirm": {
+      "title": "Confirm import",
+      "file": "File",
+      "columns": "Mapped columns",
+      "start": "Start import"
+    }
+  },
+  "job": {
+    "title": "Job status",
+    "loading": "Loading…",
+    "loadFailed": "Could not fetch the job.",
+    "status": {
+      "draft": "Draft",
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "rowsRead": "Rows read",
+    "rowsOk": "Rows succeeded",
+    "rowsFailed": "Rows failed",
+    "downloadErrors": "Download error report ({count})",
+    "downloadResult": "Download exported file"
+  },
+  "exports": {
+    "title": "Exports",
+    "fields": "Fields to export",
+    "scope": "Scope",
+    "scopeAll": "All contacts",
+    "create": "Create export",
+    "errors": {
+      "loadFailed": "Could not load the data.",
+      "noFields": "Choose at least one field.",
+      "createFailed": "Could not create the export."
+    },
+    "history": {
+      "title": "Job history",
+      "kind": "Type",
+      "status": "Status",
+      "created": "Created",
+      "download": "Downloads",
+      "empty": "No jobs yet.",
+      "kinds": { "import": "Import", "export": "Export" },
+      "statuses": {
+        "draft": "Draft",
+        "queued": "Queued",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "downloadResult": "Download CSV",
+      "downloadErrors": "Download errors"
+    }
+  }
+}
