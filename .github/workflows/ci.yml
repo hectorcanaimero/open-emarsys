@@ -43,8 +43,10 @@ jobs:
           POSTGRES_USER: oe
           POSTGRES_PASSWORD: oe
           POSTGRES_DB: oe
+        # Container port only: the host port is ephemeral, so jobs on a shared
+        # self-hosted runner (and local dev services) never fight over 5432.
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd="pg_isready -U oe"
           --health-interval=5s
@@ -53,16 +55,15 @@ jobs:
       redis:
         image: redis:7-alpine
         ports:
-          - 6379:6379
+          - 6379
         options: >-
           --health-cmd="redis-cli ping"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
     env:
-      DATABASE_URL: postgres://oe:oe@localhost:5432/oe
-      REDIS_URL: redis://localhost:6379
-      NATS_URL: nats://localhost:4222
+      # Unique per run: a self-hosted runner keeps containers between jobs.
+      NATS_CONTAINER: nats-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
 
@@ -77,9 +78,13 @@ jobs:
       - if: hashFiles('go.work') != ''
         name: Start NATS with JetStream
         run: |
-          docker run -d --name nats -p 4222:4222 -p 8222:8222 nats:2.11 -js -m 8222
+          docker rm -f "$NATS_CONTAINER" >/dev/null 2>&1 || true
+          docker run -d --name "$NATS_CONTAINER" -p 127.0.0.1::4222 -p 127.0.0.1::8222 nats:2.11 -js -m 8222
+          nats_port=$(docker port "$NATS_CONTAINER" 4222/tcp | head -1 | awk -F: '{print $NF}')
+          mon_port=$(docker port "$NATS_CONTAINER" 8222/tcp | head -1 | awk -F: '{print $NF}')
+          echo "NATS_URL=nats://127.0.0.1:${nats_port}" >> "$GITHUB_ENV"
           i=0
-          until curl -sf http://localhost:8222/healthz >/dev/null; do
+          until curl -sf "http://127.0.0.1:${mon_port}/healthz" >/dev/null; do
             i=$((i + 1))
             if [ "$i" -ge 20 ]; then
               echo "NATS did not become healthy in time" >&2
@@ -90,6 +95,9 @@ jobs:
 
       - if: hashFiles('go.work') != ''
         name: go work sync, vet and test per module
+        env:
+          DATABASE_URL: postgres://oe:oe@localhost:${{ job.services.postgres.ports['5432'] }}/oe
+          REDIS_URL: redis://localhost:${{ job.services.redis.ports['6379'] }}
         run: |
           go work sync
           mapfile -t modules < <(go work edit -json | jq -r '(.Use // [])[].DiskPath')
@@ -103,6 +111,10 @@ jobs:
             (cd "$m" && go vet ./... && go test ./...) || status=1
           done
           exit "$status"
+
+      - if: always() && hashFiles('go.work') != ''
+        name: Stop NATS
+        run: docker rm -f "$NATS_CONTAINER" >/dev/null 2>&1 || true
 
       - if: hashFiles('go.work') == ''
         run: echo "No go.work yet; skipping Go vet/test."
