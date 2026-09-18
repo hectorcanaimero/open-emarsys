@@ -1,0 +1,18 @@
+{
+  "id": "01926f3a-9c1d-7abc-9def-0123456789ab",
+  "type": "system.audit.recorded",
+  "schema_version": 1,
+  "tenant_id": "01926f00-0000-7000-8000-000000000001",
+  "occurred_at": "2026-09-17T12:34:56.789Z",
+  "source": "campaigns",
+  "contact_id": null,
+  "trace_parent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+  "data": {
+    "actor_type": "user",
+    "actor_id": "01926f3a-1111-7000-8000-000000000099",
+    "action": "contacts.delete",
+    "resource_type": "contacts",
+    "resource_id": "01926f3a-0000-7000-a000-00000000002a",
+    "diff": null
+  }
+}
