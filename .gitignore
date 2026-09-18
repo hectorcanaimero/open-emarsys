@@ -41,3 +41,6 @@ scripts/codegen/nav.ts
 
 # Development
 /tmp/
+
+# go work sync / go test regenerate this per checkout
+go.work.sum
