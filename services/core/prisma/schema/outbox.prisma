@@ -1,0 +1,17 @@
+// Transactional outbox of contacts events (C1, NFR-11). Written in the same transaction as
+// the change; `OutboxRelay` (modules/contacts-write) publishes each row with
+// `Nats-Msg-Id = id` and deletes it, so a crash between publish and delete only causes a
+// republish that JetStream deduplicates. RLS in the migration; the relay reads across
+// tenants as `core_system`.
+model ContactsOutbox {
+  /// Envelope `id` (UUID v7): also the JetStream dedup key and the publish order.
+  id        String   @id @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  subject   String
+  /// The complete C1 envelope, as published.
+  envelope  Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("outbox")
+  @@schema("contacts")
+}
