@@ -1,0 +1,89 @@
+{
+  "nav": {
+    "users": "Usuários",
+    "roles": "Papéis"
+  },
+  "users": {
+    "title": "Usuários",
+    "searchLabel": "Buscar usuários",
+    "searchPlaceholder": "Buscar por nome ou email",
+    "loadError": "Não foi possível carregar os usuários.",
+    "empty": "Nenhum usuário corresponde à busca.",
+    "invite": {
+      "heading": "Convidar usuário",
+      "emailLabel": "Email",
+      "rolesLabel": "Papéis",
+      "submit": "Enviar convite",
+      "submitting": "Enviando…",
+      "success": "Convite enviado para {email}.",
+      "rolesRequired": "Selecione ao menos um papel."
+    },
+    "table": {
+      "email": "Email",
+      "name": "Nome",
+      "status": "Status",
+      "roles": "Papéis",
+      "actions": "Ações"
+    },
+    "status": {
+      "invited": "Convidado",
+      "active": "Ativo",
+      "locked": "Bloqueado",
+      "disabled": "Desativado"
+    },
+    "editRoles": "Editar papéis",
+    "saveRoles": "Salvar papéis",
+    "cancel": "Cancelar",
+    "deactivate": "Desativar",
+    "reactivate": "Reativar",
+    "deactivateConfirm": "Desativar {email}?",
+    "reactivateConfirm": "Reativar {email}?",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir {email}? Esta ação não pode ser desfeita.",
+    "errors": {
+      "duplicateEmail": "Já existe um usuário com esse email.",
+      "lastAdmin": "Não é possível excluir nem desativar o último Admin do tenant.",
+      "generic": "Ocorreu um erro. Tente novamente."
+    }
+  },
+  "roles": {
+    "title": "Papéis",
+    "loadError": "Não foi possível carregar os papéis.",
+    "table": {
+      "module": "Módulo"
+    },
+    "editPermissions": "Editar permissões",
+    "savePermissions": "Salvar permissões",
+    "saving": "Salvando…",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir o papel {name}?",
+    "defaultBadge": "Papel padrão",
+    "defaultNotDeletable": "Papéis padrão não podem ser excluídos.",
+    "matrixCaption": "Permissões de {name} por módulo e ação",
+    "modules": {
+      "platform": "Plataforma",
+      "identity": "Identidade",
+      "contacts": "Contatos",
+      "events": "Eventos",
+      "segments": "Segmentos",
+      "email": "Email",
+      "campaigns": "Campanhas",
+      "automation": "Automação",
+      "predict": "Predict",
+      "channels": "Canais",
+      "analytics": "Analytics",
+      "loyalty": "Loyalty",
+      "integrations": "Integrações"
+    },
+    "actions": {
+      "view": "Ver",
+      "edit": "Editar",
+      "launch": "Lançar",
+      "admin": "Administrar"
+    },
+    "errors": {
+      "generic": "Ocorreu um erro. Tente novamente."
+    }
+  }
+}

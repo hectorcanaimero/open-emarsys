@@ -1,0 +1,89 @@
+{
+  "nav": {
+    "users": "Users",
+    "roles": "Roles"
+  },
+  "users": {
+    "title": "Users",
+    "searchLabel": "Search users",
+    "searchPlaceholder": "Search by name or email",
+    "loadError": "Users could not be loaded.",
+    "empty": "No users match the search.",
+    "invite": {
+      "heading": "Invite user",
+      "emailLabel": "Email",
+      "rolesLabel": "Roles",
+      "submit": "Send invitation",
+      "submitting": "Sending…",
+      "success": "Invitation sent to {email}.",
+      "rolesRequired": "Select at least one role."
+    },
+    "table": {
+      "email": "Email",
+      "name": "Name",
+      "status": "Status",
+      "roles": "Roles",
+      "actions": "Actions"
+    },
+    "status": {
+      "invited": "Invited",
+      "active": "Active",
+      "locked": "Locked",
+      "disabled": "Disabled"
+    },
+    "editRoles": "Edit roles",
+    "saveRoles": "Save roles",
+    "cancel": "Cancel",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "deactivateConfirm": "Deactivate {email}?",
+    "reactivateConfirm": "Reactivate {email}?",
+    "delete": "Delete",
+    "deleteConfirm": "Delete {email}? This can't be undone.",
+    "errors": {
+      "duplicateEmail": "A user with that email already exists.",
+      "lastAdmin": "The last Admin of the tenant can't be deleted or deactivated.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "roles": {
+    "title": "Roles",
+    "loadError": "Roles could not be loaded.",
+    "table": {
+      "module": "Module"
+    },
+    "editPermissions": "Edit permissions",
+    "savePermissions": "Save permissions",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the {name} role?",
+    "defaultBadge": "Default role",
+    "defaultNotDeletable": "Default roles can't be deleted.",
+    "matrixCaption": "{name} permissions by module and action",
+    "modules": {
+      "platform": "Platform",
+      "identity": "Identity",
+      "contacts": "Contacts",
+      "events": "Events",
+      "segments": "Segments",
+      "email": "Email",
+      "campaigns": "Campaigns",
+      "automation": "Automation",
+      "predict": "Predict",
+      "channels": "Channels",
+      "analytics": "Analytics",
+      "loyalty": "Loyalty",
+      "integrations": "Integrations"
+    },
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "launch": "Launch",
+      "admin": "Admin"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again."
+    }
+  }
+}
