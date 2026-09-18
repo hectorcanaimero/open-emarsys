@@ -1,0 +1,14 @@
+{
+  "appName": "Emarsys Admin",
+  "skipToContent": "Pular para o conteúdo principal",
+  "nav": {
+    "mainLabel": "Navegação principal",
+    "languageLabel": "Alterar idioma",
+    "userMenuLabel": "Menu do usuário",
+    "logout": "Sair"
+  },
+  "dashboard": {
+    "title": "Painel",
+    "today": "Hoje é {date}"
+  }
+}
