@@ -1,0 +1,69 @@
+{
+  "loading": "Carregando…",
+  "errors": {
+    "load": "Não foi possível carregar os dados.",
+    "generic": "Não foi possível concluir a operação.",
+    "duplicate": "Já existe um contato com esse valor único."
+  },
+  "list": {
+    "title": "Contatos",
+    "search": "Buscar por email, nome ou ID externo",
+    "results": "Resultados",
+    "empty": "Nenhum contato encontrado.",
+    "loadMore": "Carregar mais",
+    "filter": {
+      "title": "Filtro por campo",
+      "field": "Campo",
+      "op": "Operador",
+      "value": "Valor",
+      "none": "Sem filtro",
+      "ops": {
+        "eq": "é igual a",
+        "neq": "é diferente de",
+        "contains": "contém",
+        "starts_with": "começa com",
+        "gt": "maior que",
+        "lt": "menor que",
+        "empty": "está vazio",
+        "not_empty": "não está vazio"
+      }
+    },
+    "add": {
+      "title": "Cadastro rápido de contato",
+      "email": "Email",
+      "first": "Nome",
+      "last": "Sobrenome",
+      "submit": "Criar contato"
+    }
+  },
+  "detail": { "back": "Voltar aos contatos" },
+  "profile": {
+    "system": "Campos do sistema",
+    "custom": "Campos personalizados",
+    "empty": "—",
+    "yes": "Sim",
+    "no": "Não",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edit": "Editar {name}",
+    "editShort": "Editar",
+    "updated": "Última atualização: {date}"
+  },
+  "consent": {
+    "title": "Consentimentos",
+    "channels": { "email": "Email", "sms": "SMS", "push": "Push" },
+    "channel": "Canal",
+    "value": "Valor",
+    "text": "Texto de consentimento",
+    "date": "Data",
+    "source": "Origem",
+    "yes": "Aceita",
+    "no": "Não aceita",
+    "unknown": "Sem dado",
+    "submit": "Registrar alteração",
+    "history": "Histórico de consentimentos",
+    "noHistory": "Ainda não há alterações registradas."
+  },
+  "lists": { "title": "Listas", "empty": "O contato não pertence a nenhuma lista." },
+  "timeline": { "label": "Linha do tempo" }
+}
