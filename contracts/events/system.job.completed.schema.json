@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SystemJobCompleted",
+  "description": "FR-11/FR-12: an import or export job of the importer service reached a final state. The console shows it as a notification.",
+  "allOf": [
+    { "$ref": "envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "const": "system.job.completed" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["job_id", "kind", "status", "created_by", "rows_read", "result_url", "result_url_expires_at", "error"],
+          "properties": {
+            "job_id": { "type": "string", "format": "uuid" },
+            "kind": { "type": "string", "enum": ["import", "export"] },
+            "status": { "type": "string", "enum": ["succeeded", "failed"] },
+            "created_by": {
+              "description": "`sub` of the principal that started the job; the console notifies this user.",
+              "type": "string",
+              "minLength": 1
+            },
+            "rows_read": { "type": "integer", "minimum": 0 },
+            "result_url": {
+              "description": "Presigned download of the result file (exports), null when none.",
+              "type": ["string", "null"]
+            },
+            "result_url_expires_at": { "type": ["string", "null"], "format": "date-time" },
+            "error": { "description": "Failure reason, null on success.", "type": ["string", "null"] }
+          }
+        }
+      }
+    }
+  ]
+}
