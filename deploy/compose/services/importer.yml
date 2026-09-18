@@ -7,7 +7,7 @@ services:
     profiles: [core]
     networks: [oe]
     ports:
-      - "${OE_IMPORTER_PORT:-3002}:8080"
+      - "${OE_IMPORTER_PORT:-3003}:8080"
     environment:
       IMPORTER_DATABASE_URL: postgres://importer:${OE_PG_IMPORTER_PASSWORD}@postgres:5432/${OE_PG_DB}
       IMPORTER_CORE_URL: http://core:3000
