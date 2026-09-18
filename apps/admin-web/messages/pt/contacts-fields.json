@@ -1,0 +1,65 @@
+{
+  "nav": {
+    "contacts": "Contatos",
+    "fields": "Campos",
+    "lists": "Listas",
+    "import": "Importar",
+    "exports": "Exportações",
+    "relational": "Dados relacionais"
+  },
+  "title": "Campos",
+  "create": "Novo campo",
+  "cancel": "Cancelar",
+  "save": "Salvar",
+  "empty": "Ainda não há campos.",
+  "columns": {
+    "id": "ID",
+    "apiName": "Nome da API",
+    "type": "Tipo",
+    "labels": "Rótulos",
+    "unique": "Único",
+    "actions": "Ações"
+  },
+  "yes": "Sim",
+  "no": "Não",
+  "system": "Sistema",
+  "custom": "Personalizado",
+  "copy": "Copiar ID {id}",
+  "types": {
+    "text": "Texto",
+    "number": "Número",
+    "date": "Data",
+    "boolean": "Booleano",
+    "single_choice": "Escolha única",
+    "multi_choice": "Escolha múltipla"
+  },
+  "form": {
+    "createTitle": "Novo campo personalizado",
+    "editTitle": "Editar campo {name}",
+    "apiName": "Nome da API",
+    "type": "Tipo",
+    "unique": "Valor único",
+    "label": "Rótulo ({locale})",
+    "options": "Opções",
+    "optionApiName": "Nome da API da opção {n}",
+    "optionLabel": "Rótulo da opção {n} ({locale})",
+    "optionId": "ID da opção {id}",
+    "optionNew": "Nova",
+    "addOption": "Adicionar opção",
+    "removeOption": "Remover opção {n}",
+    "fixedNote": "O tipo, a unicidade e o ID não mudam ao editar."
+  },
+  "edit": "Editar {name}",
+  "delete": {
+    "action": "Excluir {name}",
+    "title": "Excluir campo",
+    "body": "O campo «{name}» (ID {id}) será excluído e seus valores serão removidos de todos os contatos. Um campo usado por listas não pode ser excluído.",
+    "confirm": "Excluir definitivamente"
+  },
+  "errors": {
+    "load": "Não foi possível carregar as informações.",
+    "generic": "Não foi possível concluir a operação.",
+    "duplicate": "Já existe um campo com esse nome de API.",
+    "inUse": "O campo está em uso por listas e não pode ser excluído."
+  }
+}

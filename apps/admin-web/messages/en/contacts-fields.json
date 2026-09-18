@@ -1,0 +1,65 @@
+{
+  "nav": {
+    "contacts": "Contacts",
+    "fields": "Fields",
+    "lists": "Lists",
+    "import": "Import",
+    "exports": "Exports",
+    "relational": "Relational data"
+  },
+  "title": "Fields",
+  "create": "New field",
+  "cancel": "Cancel",
+  "save": "Save",
+  "empty": "There are no fields yet.",
+  "columns": {
+    "id": "ID",
+    "apiName": "API name",
+    "type": "Type",
+    "labels": "Labels",
+    "unique": "Unique",
+    "actions": "Actions"
+  },
+  "yes": "Yes",
+  "no": "No",
+  "system": "System",
+  "custom": "Custom",
+  "copy": "Copy ID {id}",
+  "types": {
+    "text": "Text",
+    "number": "Number",
+    "date": "Date",
+    "boolean": "Boolean",
+    "single_choice": "Single choice",
+    "multi_choice": "Multiple choice"
+  },
+  "form": {
+    "createTitle": "New custom field",
+    "editTitle": "Edit field {name}",
+    "apiName": "API name",
+    "type": "Type",
+    "unique": "Unique value",
+    "label": "Label ({locale})",
+    "options": "Options",
+    "optionApiName": "API name of option {n}",
+    "optionLabel": "Label of option {n} ({locale})",
+    "optionId": "Option ID {id}",
+    "optionNew": "New",
+    "addOption": "Add option",
+    "removeOption": "Remove option {n}",
+    "fixedNote": "Type, uniqueness and ID do not change when editing."
+  },
+  "edit": "Edit {name}",
+  "delete": {
+    "action": "Delete {name}",
+    "title": "Delete field",
+    "body": "Field “{name}” (ID {id}) will be deleted and its values removed from every contact. A field used by lists cannot be deleted.",
+    "confirm": "Delete permanently"
+  },
+  "errors": {
+    "load": "Could not load the information.",
+    "generic": "The operation could not be completed.",
+    "duplicate": "A field with that API name already exists.",
+    "inUse": "The field is used by lists and cannot be deleted."
+  }
+}
