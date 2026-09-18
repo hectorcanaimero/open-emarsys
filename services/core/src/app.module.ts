@@ -19,6 +19,7 @@ import { z } from 'zod';
 import type { CoreConfig } from './main.js';
 import { ApiClientsModule } from './modules/api-clients/api-clients.module.js';
 import { CoreAuditModule, PostgresAuditSink } from './modules/audit/audit.module.js';
+import { ContactsSharedModule } from './modules/contacts-shared/contacts-shared.module.js';
 import { IdentityAuthModule, JwtSigner } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OAuthModule, OAuthService, RevocationAwareVerifier } from './modules/oauth/oauth.module.js';
@@ -95,6 +96,7 @@ export class AppModule {
           serviceCredentialsFile: identity.CORE_SERVICE_CREDENTIALS,
         }),
         CoreAuditModule,
+        ContactsSharedModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: CoreProblemJsonFilter },

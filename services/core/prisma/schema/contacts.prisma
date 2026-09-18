@@ -1,0 +1,198 @@
+// core → contacts (arch "Data model", FR-7, FR-13, FR-14, FR-15, NFR-8).
+//
+// A contact's values live in `data` jsonb keyed by field ID (`{"3": "a@b.com"}`); field
+// IDs 1–99 are the system fields of contracts/dsl/system-fields.json and custom ones start
+// at 1000 (`contacts.next_custom_field_id(tenant)`). Hand-written SQL in the migration
+// adds what Prisma cannot express: RLS on every table, the generated `email_norm` and
+// `external_id` columns, partial unique indexes, GIN/trigram indexes and the append-only
+// grants of `consents`.
+
+enum FieldType {
+  text
+  number
+  date
+  boolean
+  single_choice
+  multi_choice
+
+  @@map("field_type")
+  @@schema("contacts")
+}
+
+enum ConsentChannel {
+  email
+  sms
+  push
+
+  @@map("consent_channel")
+  @@schema("contacts")
+}
+
+enum GdprRequestKind {
+  export
+  forget
+
+  @@map("gdpr_request_kind")
+  @@schema("contacts")
+}
+
+enum GdprRequestStatus {
+  pending
+  running
+  done
+  failed
+
+  @@map("gdpr_request_status")
+  @@schema("contacts")
+}
+
+// Unique (tenant_id, api_name) among non-deleted definitions is in the migration SQL.
+model FieldDefinition {
+  tenantId    String    @map("tenant_id") @db.Uuid
+  fieldId     Int       @map("field_id")
+  apiName     String    @map("api_name")
+  /// `{es, pt, en}`
+  labels      Json
+  type        FieldType
+  /// `[{id, api_name, labels{es, pt, en}}]` for single/multi choice.
+  choices     Json      @default("[]")
+  description String?
+  isSystem    Boolean   @default(false) @map("is_system")
+  unique      Boolean   @default(false)
+  readOnly    Boolean   @default(false) @map("read_only")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  @@id([tenantId, fieldId])
+  @@map("field_definitions")
+  @@schema("contacts")
+}
+
+// Last custom field ID handed out per tenant; only `next_custom_field_id()` writes it.
+model FieldIdCounter {
+  tenantId String @id @map("tenant_id") @db.Uuid
+  lastId   Int    @map("last_id")
+
+  @@map("field_id_counters")
+  @@schema("contacts")
+}
+
+model Contact {
+  id         String    @id @default(dbgenerated("identity.uuid_v7()")) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  data       Json      @default("{}")
+  /// Generated from `lower(trim(data->>'3'))`; never written.
+  emailNorm  String?   @map("email_norm")
+  /// Generated from `nullif(trim(data->>'4'), '')`; never written.
+  externalId String?   @map("external_id")
+  version    BigInt    @default(1)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  uniqueValues  UniqueValue[]
+  listMembers   ListMember[]
+  identityLinks IdentityLink[]
+
+  @@index([tenantId, updatedAt, id])
+  @@map("contacts")
+  @@schema("contacts")
+}
+
+// Values of custom `unique` fields, so uniqueness holds per (tenant, field).
+model UniqueValue {
+  tenantId  String @map("tenant_id") @db.Uuid
+  fieldId   Int    @map("field_id")
+  value     String
+  contactId String @map("contact_id") @db.Uuid
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, fieldId, value])
+  @@index([contactId])
+  @@map("unique_values")
+  @@schema("contacts")
+}
+
+model ContactList {
+  id        String   @id @default(dbgenerated("identity.uuid_v7()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members ListMember[]
+
+  @@unique([tenantId, name])
+  @@map("lists")
+  @@schema("contacts")
+}
+
+model ListMember {
+  listId    String   @map("list_id") @db.Uuid
+  contactId String   @map("contact_id") @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  addedAt   DateTime @default(now()) @map("added_at") @db.Timestamptz(3)
+
+  list    ContactList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contact Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([listId, contactId])
+  @@index([contactId])
+  @@map("list_members")
+  @@schema("contacts")
+}
+
+// Append-only history (FR-14); the current value is in the contact's fields 31/32/33.
+// No foreign key: the history outlives a forgotten contact, with `text` anonymized (FR-15).
+model Consent {
+  id        String         @id @default(dbgenerated("identity.uuid_v7()")) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  contactId String         @map("contact_id") @db.Uuid
+  channel   ConsentChannel
+  /// 1 yes, 2 no, null unknown (options of fields 31–33).
+  value     Int?           @db.SmallInt
+  source    String
+  text      String?
+  actor     String?
+  changedAt DateTime       @default(now()) @map("changed_at") @db.Timestamptz(3)
+
+  @@index([contactId, channel, changedAt(sort: Desc)])
+  @@map("consents")
+  @@schema("contacts")
+}
+
+// `contact_id` has no foreign key: a forget request outlives the contact it erased and
+// identifies it by `subject_hash` instead.
+model GdprRequest {
+  id          String            @id @default(dbgenerated("identity.uuid_v7()")) @db.Uuid
+  tenantId    String            @map("tenant_id") @db.Uuid
+  contactId   String?           @map("contact_id") @db.Uuid
+  subjectHash String?           @map("subject_hash")
+  kind        GdprRequestKind
+  status      GdprRequestStatus @default(pending)
+  requestedBy String?           @map("requested_by")
+  resultKey   String?           @map("result_key")
+  error       String?
+  requestedAt DateTime          @default(now()) @map("requested_at") @db.Timestamptz(3)
+  completedAt DateTime?         @map("completed_at") @db.Timestamptz(3)
+
+  @@index([tenantId, requestedAt(sort: Desc)])
+  @@map("gdpr_requests")
+  @@schema("contacts")
+}
+
+model IdentityLink {
+  tenantId    String   @map("tenant_id") @db.Uuid
+  anonymousId String   @map("anonymous_id")
+  contactId   String   @map("contact_id") @db.Uuid
+  linkedAt    DateTime @default(now()) @map("linked_at") @db.Timestamptz(3)
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, anonymousId])
+  @@index([contactId])
+  @@map("identity_links")
+  @@schema("contacts")
+}
