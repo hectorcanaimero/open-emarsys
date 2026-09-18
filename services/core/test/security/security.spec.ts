@@ -12,6 +12,7 @@ import { SignJWT } from 'jose';
 import { connect } from 'nats';
 import { GenericContainer, type StartedTestContainer, Wait } from 'testcontainers';
 import { AppModule } from '../../src/app.module.js';
+import { SystemFieldsSeeder } from '../../src/modules/contacts-shared/system-fields.seeder.js';
 import type { CoreConfig } from '../../src/main.js';
 import { JwtSigner } from '../../src/modules/auth/auth.module.js';
 import { PERMISSION_ACTIONS, PERMISSION_MODULES } from '../../src/modules/identity-shared/permissions.js';
@@ -53,6 +54,12 @@ interface Fixtures {
   roleB: string;
   adminRoleB: string;
   clientB: string;
+  contactB: string;
+  listB: string;
+  fieldB: number;
+  tableB: string;
+  /** Tenant B's whole contacts schema, as it was after setup. */
+  before: string;
 }
 
 interface CrossTenantCase {
@@ -109,8 +116,65 @@ const CROSS_TENANT: Record<string, (f: Fixtures, su: PrismaClient) => CrossTenan
   }),
 };
 
+/** Tenant B's rows in every contacts table, read with the RLS-bypassing client. */
+const contactsSnapshot = async (su: PrismaClient, tenant: string): Promise<string> => {
+  const parts: string[] = [];
+  for (const t of ['contacts', 'field_definitions', 'lists', 'list_members', 'consents', 'gdpr_requests', 'relational_tables', 'relational_rows']) {
+    const rows = await su.$queryRawUnsafe<{ s: string }[]>(
+      `SELECT coalesce(json_agg(t ORDER BY t::text)::text, '[]') AS s FROM contacts.${t} t WHERE tenant_id = $1::uuid`,
+      tenant
+    );
+    parts.push(`${t}:${rows[0]!.s}`);
+  }
+  return parts.join('\n');
+};
+
+/** A case aimed at tenant B's contacts data: B's contacts schema must not change at all. */
+const contactsCase =
+  (path: (f: Fixtures) => string, body?: unknown) =>
+  (f: Fixtures, su: PrismaClient): CrossTenantCase => ({
+    path: path(f),
+    body,
+    unchanged: async () => expect(await contactsSnapshot(su, f.tenantB)).toBe(f.before),
+  });
+
+const CONTACTS_CROSS_TENANT: Record<string, (f: Fixtures, su: PrismaClient) => CrossTenantCase> = {
+  'PATCH /admin/v1/fields/:fieldId': contactsCase((f) => `/admin/v1/fields/${f.fieldB}`, { labels: { es: 'pwned', pt: 'pwned', en: 'pwned' } }),
+  'DELETE /admin/v1/fields/:fieldId': contactsCase((f) => `/admin/v1/fields/${f.fieldB}`),
+  'GET /admin/v1/contacts/:id': contactsCase((f) => `/admin/v1/contacts/${f.contactB}`),
+  'PATCH /admin/v1/contacts/:id': contactsCase((f) => `/admin/v1/contacts/${f.contactB}`, { fields: { '1': 'pwned' } }),
+  'DELETE /admin/v1/contacts/:id': contactsCase((f) => `/admin/v1/contacts/${f.contactB}`),
+  'GET /admin/v1/contacts/:id/lists': contactsCase((f) => `/admin/v1/contacts/${f.contactB}/lists`),
+  'GET /admin/v1/contacts/:id/consents': contactsCase((f) => `/admin/v1/contacts/${f.contactB}/consents`),
+  'POST /admin/v1/contacts/:id/consents': contactsCase((f) => `/admin/v1/contacts/${f.contactB}/consents`, {
+    channel: 'email',
+    value: 1,
+    source: 'pwned',
+  }),
+  'POST /admin/v1/contacts/:id/gdpr/export': contactsCase((f) => `/admin/v1/contacts/${f.contactB}/gdpr/export`),
+  'POST /admin/v1/contacts/:id/gdpr/forget': contactsCase((f) => `/admin/v1/contacts/${f.contactB}/gdpr/forget`),
+  'GET /admin/v1/contacts/:id/relational/:tableId': contactsCase((f) => `/admin/v1/contacts/${f.contactB}/relational/${f.tableB}`),
+  'GET /admin/v1/lists/:id': contactsCase((f) => `/admin/v1/lists/${f.listB}`),
+  'PATCH /admin/v1/lists/:id': contactsCase((f) => `/admin/v1/lists/${f.listB}`, { name: 'pwned' }),
+  'DELETE /admin/v1/lists/:id': contactsCase((f) => `/admin/v1/lists/${f.listB}`),
+  'GET /admin/v1/lists/:id/members': contactsCase((f) => `/admin/v1/lists/${f.listB}/members`),
+  'POST /admin/v1/lists/:id/members': contactsCase((f) => `/admin/v1/lists/${f.listB}/members`, { contact_ids: [randomUUID()] }),
+  'DELETE /admin/v1/lists/:id/members': contactsCase((f) => `/admin/v1/lists/${f.listB}/members`, { contact_ids: [randomUUID()] }),
+  'GET /admin/v1/relational-tables/:id': contactsCase((f) => `/admin/v1/relational-tables/${f.tableB}`),
+  'PATCH /admin/v1/relational-tables/:id': contactsCase((f) => `/admin/v1/relational-tables/${f.tableB}`, { name: 'pwned' }),
+  'DELETE /admin/v1/relational-tables/:id': contactsCase((f) => `/admin/v1/relational-tables/${f.tableB}`),
+};
+Object.assign(CROSS_TENANT, CONTACTS_CROSS_TENANT);
+
 /** Tenant-B strings that must never appear in a response to tenant A. */
-const B_SECRETS = ['Tenant B', 'Admin B', 'admin@b.test', 'viewer@b.test', 'Secret role B', 'Client B'];
+const B_SECRETS = ['Tenant B', 'Admin B', 'admin@b.test', 'viewer@b.test', 'Secret role B',
+  'Client B',
+  'Secret Contact B',
+  'secret-b@b.test',
+  'Secret list B',
+  'secret_field_b',
+  'secret_table_b',
+];
 
 interface Route {
   key: string;
@@ -216,6 +280,12 @@ describe('security (full app: Postgres + NATS)', () => {
 
     // SystemPrismaModule, PrismaModule and HealthModule read DATABASE_URL themselves.
     process.env.DATABASE_URL = `postgresql://core:core@${pg.getHost()}:${pg.getPort()}/${pg.getDatabase()}?schema=identity`;
+    // GdprModule builds its S3 client from these; the matrix never reaches MinIO.
+    Object.assign(process.env, {
+      CORE_MINIO_ENDPOINT: 'http://127.0.0.1:9',
+      CORE_MINIO_ACCESS_KEY: 'test',
+      CORE_MINIO_SECRET_KEY: 'test-secret',
+    });
     const config: CoreConfig = { PORT: 0, DATABASE_URL: process.env.DATABASE_URL, NATS_URL: natsUrl, CORE_JWT_ISSUER: ISSUER };
     const moduleRef = await Test.createTestingModule({
       imports: [
@@ -277,6 +347,26 @@ describe('security (full app: Postgres + NATS)', () => {
     });
     expect(client.status).toBe(201);
 
+    // Tenant B's contacts data, created through the public API as B's admin.
+    await app.get(SystemFieldsSeeder).seed(tenantB);
+    const okData = async (method: string, url: string, body: unknown) => {
+      const res = await call(method, url, { token: tokenB, body });
+      expect([200, 201]).toContain(res.status);
+      return JSON.parse(res.text) as { data?: { id?: string; ids?: string[] }; id?: string };
+    };
+    await okData('POST', '/api/v3/field', { name: 'Campo secreto B', application_type: 'text', string_id: 'secret_field_b' });
+    const fieldB = (
+      await su.$queryRawUnsafe<{ field_id: number }[]>(
+        `SELECT field_id FROM contacts.field_definitions WHERE tenant_id = $1::uuid AND api_name = 'secret_field_b'`,
+        tenantB
+      )
+    )[0]!.field_id;
+    const contactB = (await okData('POST', '/api/v3/contact', { key_id: '3', contacts: [{ '1': 'Secret Contact B', '3': 'secret-b@b.test' }] })).data!.ids![0]!;
+    const listB = (await okData('POST', '/api/v3/contactlist', { name: 'Secret list B', key_id: '3', external_ids: ['secret-b@b.test'] })).data!.id!;
+    const tableB = (
+      await okData('POST', '/admin/v1/relational-tables', { name: 'secret_table_b', key_field: 'pet', columns: [{ name: 'pet', type: 'text' }] })
+    ).id!;
+
     f = {
       tenantA,
       tenantB,
@@ -286,6 +376,11 @@ describe('security (full app: Postgres + NATS)', () => {
       roleB: (JSON.parse(role.text) as { id: string }).id,
       adminRoleB: (await adminRole(tenantB)).id,
       clientB: (JSON.parse(client.text) as { id: string }).id,
+      contactB,
+      listB,
+      fieldB,
+      tableB,
+      before: await contactsSnapshot(su, tenantB),
     };
   });
 
@@ -404,7 +499,7 @@ describe('security (full app: Postgres + NATS)', () => {
 
     it("no list endpoint shows tenant A anything of tenant B's", async () => {
       const token = await user(f.adminA, f.tenantA, allPerms);
-      const ids = [f.tenantB, f.adminB, f.viewerB, f.roleB, f.adminRoleB, f.clientB];
+      const ids = [f.tenantB, f.adminB, f.viewerB, f.roleB, f.adminRoleB, f.clientB, f.contactB, f.listB, f.tableB];
       const lists = routes.filter((r) => r.method === 'GET' && r.path.startsWith('/admin/v1/') && !r.path.includes(':'));
       expect(lists.length).toBeGreaterThan(0);
       const failures: string[] = [];

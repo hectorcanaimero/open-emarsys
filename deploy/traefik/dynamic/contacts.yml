@@ -1,0 +1,38 @@
+# Rutas de contactos (F1): core sirve campos, contactos, listas, GDPR y tablas relacionales;
+# importer sirve import/export y jobs. El service `core` se define en core.yml.
+# `/api/v3/contact` también cubre `/contactlist` por prefijo; ambos son de core.
+http:
+  services:
+    importer:
+      loadBalancer:
+        servers:
+          - url: "http://importer:8080"
+
+  routers:
+    core-api-contacts:
+      rule: "PathPrefix(`/api/v3/field`) || PathPrefix(`/api/v3/contact`) || PathPrefix(`/api/v3/gdpr`) || PathPrefix(`/api/v3/relational`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    core-admin-contacts:
+      rule: "PathPrefix(`/admin/v1/fields`) || PathPrefix(`/admin/v1/contacts`) || PathPrefix(`/admin/v1/lists`) || PathPrefix(`/admin/v1/relational-tables`) || PathPrefix(`/admin/v1/gdpr-requests`)"
+      service: core
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    importer-api:
+      rule: "PathPrefix(`/api/v3/import`) || PathPrefix(`/api/v3/export`) || PathPrefix(`/api/v3/jobs`)"
+      service: importer
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100
+
+    importer-admin:
+      rule: "PathPrefix(`/admin/v1/imports`) || PathPrefix(`/admin/v1/exports`) || PathPrefix(`/admin/v1/jobs`)"
+      service: importer
+      entryPoints: [web]
+      middlewares: [secure-headers, ratelimit-tenant]
+      priority: 100

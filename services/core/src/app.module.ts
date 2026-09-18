@@ -19,7 +19,14 @@ import { z } from 'zod';
 import type { CoreConfig } from './main.js';
 import { ApiClientsModule } from './modules/api-clients/api-clients.module.js';
 import { CoreAuditModule, PostgresAuditSink } from './modules/audit/audit.module.js';
+import { ConsentsModule } from './modules/consents/consents.module.js';
+import { ContactsQueryModule } from './modules/contacts-query/contacts-query.module.js';
 import { ContactsSharedModule } from './modules/contacts-shared/contacts-shared.module.js';
+import { ContactsWriteModule } from './modules/contacts-write/contacts-write.module.js';
+import { FieldsModule } from './modules/fields/fields.module.js';
+import { GdprModule } from './modules/gdpr/gdpr.module.js';
+import { ListsModule } from './modules/lists/lists.module.js';
+import { RelationalModule } from './modules/relational/relational.module.js';
 import { IdentityAuthModule, JwtSigner } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OAuthModule, OAuthService, RevocationAwareVerifier } from './modules/oauth/oauth.module.js';
@@ -97,6 +104,13 @@ export class AppModule {
         }),
         CoreAuditModule,
         ContactsSharedModule,
+        FieldsModule,
+        ContactsWriteModule,
+        ContactsQueryModule,
+        ListsModule,
+        ConsentsModule,
+        RelationalModule,
+        GdprModule,
       ],
       providers: [
         { provide: APP_FILTER, useClass: CoreProblemJsonFilter },
