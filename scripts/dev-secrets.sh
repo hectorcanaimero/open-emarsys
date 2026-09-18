@@ -23,3 +23,15 @@ replace_placeholder() { # var, placeholder prefix, value
 replace_placeholder CORE_JWT_KEYS_DIR /abs/path "$dir/jwt"
 replace_placeholder CORE_SERVICE_CREDENTIALS /abs/path "$dir/service-credentials.json"
 replace_placeholder CORE_ENCRYPTION_KEY change-me "$(openssl rand -base64 32)"
+
+# The importer authenticates to core as client_id "importer"; core reads the same secret from
+# service-credentials.json, so both sides are written from one value.
+grep -q '^IMPORTER_SERVICE_SECRET=' "$env_file" || echo 'IMPORTER_SERVICE_SECRET=change-me' >> "$env_file"
+replace_placeholder IMPORTER_SERVICE_SECRET change-me "$(openssl rand -hex 24)"
+importer_secret=$(grep '^IMPORTER_SERVICE_SECRET=' "$env_file" | cut -d= -f2-)
+creds="$dir/service-credentials.json"
+tmp=$(mktemp)
+jq --arg s "$importer_secret" \
+  '.importer = {secret: $s, scopes: (.importer.scopes // ["contacts:view", "contacts:edit"])}' \
+  "$creds" > "$tmp" && mv "$tmp" "$creds"
+chmod 644 "$creds"
