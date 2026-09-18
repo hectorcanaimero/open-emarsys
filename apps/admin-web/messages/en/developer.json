@@ -1,0 +1,88 @@
+{
+  "credentials": {
+    "navLabel": "API credentials",
+    "title": "API credentials",
+    "description": "Manage the clients that can authenticate against the public API.",
+    "newButton": "New client",
+    "table": {
+      "name": "Name",
+      "clientId": "Client ID",
+      "scopes": "Scopes",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "revoked": "Revoked"
+    },
+    "empty": "There are no API clients yet.",
+    "loadMore": "Load more",
+    "revokeButton": "Revoke",
+    "createDialog": {
+      "title": "New API client",
+      "nameLabel": "Name",
+      "scopesLabel": "Scopes",
+      "cancel": "Cancel",
+      "submit": "Create",
+      "creating": "Creating…"
+    },
+    "secretDialog": {
+      "title": "Credentials created",
+      "warning": "This is the only time the client_secret is shown. Copy it now; you won't be able to see it again.",
+      "clientIdLabel": "Client ID",
+      "clientSecretLabel": "Client Secret",
+      "copy": "Copy secret",
+      "copied": "Copied",
+      "done": "Done"
+    },
+    "revokeDialog": {
+      "title": "Revoke client",
+      "body": "Revoke \"{name}\"? Tokens already issued will be rejected immediately. This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Revoke",
+      "revoking": "Revoking…"
+    },
+    "curlExample": {
+      "title": "Get an access token",
+      "description": "Exchange the client_id and client_secret for a JWT valid for one hour."
+    },
+    "errors": {
+      "loadFailed": "Couldn't load the API clients.",
+      "createFailed": "Couldn't create the API client.",
+      "revokeFailed": "Couldn't revoke the API client."
+    }
+  },
+  "audit": {
+    "navLabel": "Audit log",
+    "title": "Audit log",
+    "description": "History of write actions, most recent first.",
+    "filters": {
+      "actor": "Actor",
+      "resourceType": "Resource type",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply filters",
+      "reset": "Reset"
+    },
+    "table": {
+      "occurredAt": "Date",
+      "actor": "Actor",
+      "action": "Action",
+      "resourceType": "Resource",
+      "details": "View detail"
+    },
+    "detailDialog": {
+      "title": "Change detail",
+      "noChanges": "This entry has no recorded changes.",
+      "field": "Field",
+      "before": "Before",
+      "after": "After",
+      "close": "Close"
+    },
+    "empty": "No audit entries match these filters.",
+    "loadMore": "Load more",
+    "errors": {
+      "loadFailed": "Couldn't load the audit log."
+    }
+  }
+}

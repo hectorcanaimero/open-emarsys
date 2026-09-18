@@ -1,0 +1,88 @@
+{
+  "credentials": {
+    "navLabel": "Credenciais de API",
+    "title": "Credenciais de API",
+    "description": "Gerencie os clientes que podem se autenticar na API pública.",
+    "newButton": "Novo cliente",
+    "table": {
+      "name": "Nome",
+      "clientId": "Client ID",
+      "scopes": "Scopes",
+      "status": "Status",
+      "actions": "Ações"
+    },
+    "status": {
+      "active": "Ativo",
+      "revoked": "Revogado"
+    },
+    "empty": "Ainda não há clientes de API.",
+    "loadMore": "Carregar mais",
+    "revokeButton": "Revogar",
+    "createDialog": {
+      "title": "Novo cliente de API",
+      "nameLabel": "Nome",
+      "scopesLabel": "Scopes",
+      "cancel": "Cancelar",
+      "submit": "Criar",
+      "creating": "Criando…"
+    },
+    "secretDialog": {
+      "title": "Credenciais criadas",
+      "warning": "Este é o único momento em que o client_secret é exibido. Copie agora; você não vai conseguir vê-lo novamente.",
+      "clientIdLabel": "Client ID",
+      "clientSecretLabel": "Client Secret",
+      "copy": "Copiar secret",
+      "copied": "Copiado",
+      "done": "Concluído"
+    },
+    "revokeDialog": {
+      "title": "Revogar cliente",
+      "body": "Revogar \"{name}\"? Os tokens já emitidos deixarão de ser aceitos imediatamente. Esta ação não pode ser desfeita.",
+      "cancel": "Cancelar",
+      "confirm": "Revogar",
+      "revoking": "Revogando…"
+    },
+    "curlExample": {
+      "title": "Obter um token de acesso",
+      "description": "Troque o client_id e o client_secret por um JWT válido por uma hora."
+    },
+    "errors": {
+      "loadFailed": "Não foi possível carregar os clientes de API.",
+      "createFailed": "Não foi possível criar o cliente de API.",
+      "revokeFailed": "Não foi possível revogar o cliente de API."
+    }
+  },
+  "audit": {
+    "navLabel": "Auditoria",
+    "title": "Audit log",
+    "description": "Histórico de ações de escrita, mais recentes primeiro.",
+    "filters": {
+      "actor": "Ator",
+      "resourceType": "Tipo de recurso",
+      "from": "De",
+      "to": "Até",
+      "apply": "Aplicar filtros",
+      "reset": "Limpar"
+    },
+    "table": {
+      "occurredAt": "Data",
+      "actor": "Ator",
+      "action": "Ação",
+      "resourceType": "Recurso",
+      "details": "Ver detalhe"
+    },
+    "detailDialog": {
+      "title": "Detalhe da alteração",
+      "noChanges": "Esta entrada não tem alterações registradas.",
+      "field": "Campo",
+      "before": "Antes",
+      "after": "Depois",
+      "close": "Fechar"
+    },
+    "empty": "Nenhuma entrada de auditoria para estes filtros.",
+    "loadMore": "Carregar mais",
+    "errors": {
+      "loadFailed": "Não foi possível carregar o audit log."
+    }
+  }
+}
