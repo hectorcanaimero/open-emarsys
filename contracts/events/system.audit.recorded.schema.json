@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SystemAuditRecorded",
+  "description": "FR-6: a successful write under /admin/v1 or /api/v3, fed into identity.audit_log. Published by every service except core, which writes identity.audit_log directly.",
+  "allOf": [
+    { "$ref": "envelope.schema.json" },
+    {
+      "properties": {
+        "type": { "const": "system.audit.recorded" },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["actor_type", "actor_id", "action", "resource_type", "resource_id", "diff"],
+          "properties": {
+            "actor_type": {
+              "description": "Kind of principal that performed the action.",
+              "type": "string",
+              "enum": ["user", "client", "service"]
+            },
+            "actor_id": {
+              "description": "`sub` claim of the principal's JWT.",
+              "type": "string",
+              "minLength": 1
+            },
+            "action": {
+              "description": "`<resource_type>.<create|update|delete>`.",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*\\.(create|update|delete)$"
+            },
+            "resource_type": {
+              "description": "First path segment after /admin/v1 or /api/v3, e.g. contacts.",
+              "type": "string",
+              "minLength": 1
+            },
+            "resource_id": {
+              "description": "Id of the affected resource, or null when it could not be determined.",
+              "type": ["string", "null"]
+            },
+            "diff": {
+              "description": "Request body for create/update, null for delete."
+            }
+          }
+        }
+      }
+    }
+  ]
+}
