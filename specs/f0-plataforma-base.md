@@ -685,6 +685,8 @@ Done when: con la plataforma arriba, `curl -i localhost:8080/.well-known/jwks.js
 
 `scripts/seed/run.sh` como punto de entrada único (`make seed`) que ejecuta en orden los seeds de cada fase presentes en `scripts/seed/*/seed.*` (cada fase agrega su directorio; el orden es alfabético por nombre de directorio con prefijo numérico). `scripts/seed/00-platform/seed.ts` (tsx) idempotente que, vía la API de core y con credenciales de operador bootstrap desde env: crea el usuario operador, el tenant demo "Tienda Demo" (America/Sao_Paulo, es) con sus roles por defecto, un Admin (`admin@demo.local`), un Marketer y un Viewer con contraseñas de `.env.example`, y un API client de demo con todos los scopes cuyo secret se escribe en `.env.local` (gitignored). El operador se crea con `pnpm --filter @oe/core cli create-operator` (F0.6.T3). Cubre NFR-13.
 
+**Ampliación (bloqueo del 2026-09-18):** la API de core no puede crear el primer Admin de un tenant: `POST /admin/v1/tenants` solo crea el tenant y sus roles por defecto, invitar usuarios exige un principal del tenant con `identity:admin` y el operador recibe 403 en las rutas de tenant. Esta tarea añade a `POST /admin/v1/tenants` (solo operador, `platform:admin`) un campo opcional `admin: { email, password }` que, en la misma transacción `withSystemScope` que crea el tenant, crea ese usuario con el rol `Admin` del tenant nuevo. Primero se actualiza el contrato en `contracts/openapi/admin-v1/identity.yaml` (C3) y se cubre con un test de integración en `services/core/src/modules/tenants/`. El seed lo usa para `admin@demo.local`, y F0.8.T4 (escenario 3) para el admin del tenant nuevo. Además, `deploy/compose/services/core.yml` y `deploy/compose/.env.example` deben declarar las variables que core ya exige (`CORE_JWT_KEYS_DIR`, `CORE_ENCRYPTION_KEY`, `CORE_SERVICE_CREDENTIALS`) para que `make up` levante core.
+
 Done when: `make seed` corre dos veces seguidas sin error ni duplicados, y después se puede iniciar sesión en la consola como `admin@demo.local`.
 
 - **Model**: claude/claude-sonnet-5
@@ -694,6 +696,10 @@ Done when: `make seed` corre dos veces seguidas sin error ni duplicados, y despu
 - **Files**:
   - `scripts/seed/run.sh`
   - `scripts/seed/00-platform/`
+  - `contracts/openapi/admin-v1/identity.yaml`
+  - `services/core/src/modules/tenants/`
+  - `deploy/compose/services/core.yml`
+  - `deploy/compose/.env.example`
 
 ### F0.8.T4 — Suite e2e de plataforma
 
