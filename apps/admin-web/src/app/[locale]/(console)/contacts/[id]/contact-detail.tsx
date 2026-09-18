@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { api, type Page } from '../lists/api';
+import { GdprActions } from './gdpr-actions';
+import { RelationalPanel } from './relational-panel';
 import {
   CONSENT_FIELD_IDS,
   type Consent,
@@ -36,7 +38,13 @@ function useFormats() {
   };
 }
 
-export function ContactDetail({ id }: { id: string }) {
+export function ContactDetail({
+  id,
+  permissions = [],
+}: {
+  id: string;
+  permissions?: readonly string[];
+}) {
   const t = useTranslations('contacts-detail');
   const locale = useLocale() as Locale;
   const fmt = useFormats();
@@ -387,6 +395,12 @@ export function ContactDetail({ id }: { id: string }) {
           </ul>
         )}
       </section>
+
+      <RelationalPanel contactId={id} />
+
+      {permissions.includes('contacts:admin') && (
+        <GdprActions contactId={id} email={String(profile.fields['3'] ?? '')} />
+      )}
 
       {/*
         Extension point for F2.7 (contact timeline). Contract: this element stays empty here;
