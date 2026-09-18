@@ -1,4 +1,4 @@
-.PHONY: help up down seed e2e lint test contracts codegen bench
+.PHONY: help up down seed e2e lint test verify contracts codegen bench
 
 help:
 	@echo "Open Emarsys — make targets:"
@@ -8,6 +8,7 @@ help:
 	@echo "  e2e      — run end-to-end tests"
 	@echo "  lint     — lint all code (turbo + golangci + ruff)"
 	@echo "  test     — run all tests"
+	@echo "  verify   — run what CI runs (do this before handing a task back)"
 	@echo "  contracts — validate event schemas and OpenAPI"
 	@echo "  codegen  — generate TypeScript/Go from contracts"
 	@echo "  bench    — run benchmarks"
@@ -47,6 +48,26 @@ lint:
 
 test:
 	pnpm turbo run test
+
+# Everything .github/workflows/ci.yml checks, in one target. Steps whose toolchain or
+# entry point is missing are skipped, so this works from the first task onward.
+verify:
+	@if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile && pnpm turbo lint typecheck test; fi
+	@if [ -f go.work ] && command -v go > /dev/null; then \
+		for m in $$(go work edit -json | jq -r '(.Use // [])[].DiskPath'); do \
+			(cd "$$m" && go vet ./... && go test ./...) || exit 1; \
+		done; \
+	fi
+	@if [ -f pyproject.toml ] && command -v uv > /dev/null; then uv sync --quiet && uv run ruff check . && uv run pytest -q; fi
+	@if [ -f scripts/codegen/validate-contracts.mjs ]; then $(MAKE) contracts; fi
+	@if [ -f scripts/codegen/gen.mjs ]; then \
+		before="$$(git status --porcelain)"; \
+		$(MAKE) codegen; \
+		if [ "$$before" != "$$(git status --porcelain)" ]; then \
+			echo "make codegen changed tracked files; commit the regenerated output"; \
+			exit 1; \
+		fi; \
+	fi
 
 contracts:
 	@if [ ! -f scripts/codegen/validate-contracts.mjs ]; then \
