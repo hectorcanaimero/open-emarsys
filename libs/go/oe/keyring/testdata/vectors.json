@@ -1,0 +1,13 @@
+{
+  "master_keys": "dev1:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "master_key_id": "dev1",
+  "derive": [
+    {"purpose": "track", "tenant_id": "00000000-0000-4000-8000-000000000001", "key_hex": ""},
+    {"purpose": "track", "tenant_id": "00000000-0000-4000-8000-000000000002", "key_hex": ""},
+    {"purpose": "dkim", "tenant_id": "00000000-0000-4000-8000-000000000001", "key_hex": ""}
+  ],
+  "seal": [
+    {"purpose": "dkim", "plaintext": "hola, mundo", "nonce_hex": "000102030405060708090a0b", "sealed": ""},
+    {"purpose": "webhook", "plaintext": "", "nonce_hex": "0b0a09080706050403020100", "sealed": ""}
+  ]
+}
