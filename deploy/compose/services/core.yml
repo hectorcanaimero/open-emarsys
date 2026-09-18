@@ -1,0 +1,28 @@
+services:
+  core:
+    build:
+      context: ../../..
+      dockerfile: services/core/Dockerfile
+    profiles: [core]
+    networks: [oe]
+    ports:
+      - "${OE_CORE_PORT:-3001}:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://core:${OE_PG_CORE_PASSWORD}@postgres:5432/${OE_PG_DB}
+      NATS_URL: nats://nats:4222
+      CORE_JWT_ISSUER: ${CORE_JWT_ISSUER:-open-emarsys/core}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512m

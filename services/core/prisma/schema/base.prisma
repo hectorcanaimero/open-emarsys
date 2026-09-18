@@ -1,0 +1,15 @@
+// Multi-file schema (C11): other tasks add `services/core/prisma/schema/<module>.prisma`
+// with their own models. Datasource and generator are declared once, here.
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["prismaSchemaFolder", "multiSchema"]
+}
+
+// Connects as the `core` role (deploy/postgres/init/00-roles.sql), which owns
+// every schema core is made of (D9): identity, contacts, events_registry,
+// catalog, devices, inbox.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["identity", "contacts", "events_registry", "catalog", "devices", "inbox"]
+}
