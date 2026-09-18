@@ -5,7 +5,10 @@ http:
   middlewares:
     ratelimit-ip:
       rateLimit:
-        average: 0.17
+        # 10 requests per minute per IP. `average` is an integer count per `period`:
+        # the fractional 0.17/s this used to say made Traefik reject the whole file.
+        average: 10
+        period: 1m
         burst: 10
 
     ratelimit-tenant:
@@ -34,6 +37,6 @@ http:
   routers:
     dashboard:
       rule: "PathPrefix(`/api`) || PathPrefix(`/dashboard`)"
-      entryPoints: [web]
+      entryPoints: [dashboard]
       service: api@internal
       middlewares: [dashboard-auth]

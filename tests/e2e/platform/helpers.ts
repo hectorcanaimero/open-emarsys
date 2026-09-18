@@ -133,14 +133,21 @@ export async function createUser(adminToken: string, prefix: string, role = 'Vie
  * Submits the console login form, waiting out the gateway's per-IP login limit (admin-web calls
  * core from one IP). Resolves once the page reaches `expectUrl` or shows any other outcome.
  */
+/**
+ * role="alert" elements the app renders. Next keeps an always-present, empty
+ * `#__next-route-announcer__` with role="alert" in every page, so a bare
+ * getByRole('alert') matches it too and resolves before any real alert shows up.
+ */
+export const alerts = (page: Page) => page.locator('[role="alert"]:not(#__next-route-announcer__)');
+
 export async function uiLogin(page: Page, email: string, password: string, expectUrl: RegExp = /\/es\/?$/) {
   await page.goto('/es/login');
   for (let attempt = 0; attempt < 10; attempt++) {
     await page.getByLabel('Email').fill(email);
     await page.getByLabel('Contraseña').fill(password);
     await page.getByRole('button', { name: 'Entrar' }).click();
-    const limited = page.getByRole('alert').filter({ hasText: 'Demasiados intentos' });
-    const other = page.getByRole('alert').filter({ hasNotText: 'Demasiados intentos' });
+    const limited = alerts(page).filter({ hasText: 'Demasiados intentos' });
+    const other = alerts(page).filter({ hasNotText: 'Demasiados intentos' });
     await Promise.race([page.waitForURL(expectUrl), limited.waitFor(), other.waitFor()]).catch(() => undefined);
     if (!(await limited.isVisible())) return;
     await sleep(7_000);

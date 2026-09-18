@@ -18,7 +18,10 @@ up:
 		echo "Error: deploy/compose/docker-compose.yml not found"; \
 		exit 1; \
 	fi
-	docker compose -f deploy/compose/docker-compose.yml up -d
+	@[ -f deploy/compose/.env ] || { cp deploy/compose/.env.example deploy/compose/.env; echo "deploy/compose/.env created from .env.example"; }
+	@scripts/dev-secrets.sh
+	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-core,data,obs} docker compose -f deploy/compose/docker-compose.yml up -d
+	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-core,data,obs} scripts/wait-healthy.sh
 
 down:
 	@if [ ! -f deploy/compose/docker-compose.yml ]; then \
