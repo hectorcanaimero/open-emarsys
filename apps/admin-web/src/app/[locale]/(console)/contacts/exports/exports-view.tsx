@@ -10,7 +10,7 @@ const inputClass = 'mt-1 block rounded-md border border-input bg-transparent px-
 const live = (url: string | null, expires: string | null) => !!url && (!expires || new Date(expires) > new Date());
 
 export function ExportsView() {
-  const t = useTranslations('contactsImport.exports');
+  const t = useTranslations('contacts-import.exports');
   const locale = useLocale();
   const format = useFormatter();
 
