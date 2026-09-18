@@ -1,0 +1,38 @@
+// core → contacts.relational_* (arch "Data model", FR-16): customer-defined tables whose
+// rows hang off a contact (pets, cars, policies). `columns` is `[{name, type, choices?}]`
+// with the field types of `contacts.field_type`; `data` is keyed by column name. RLS, the
+// GIN index on `data` and the cascade from a deleted table are in the migration SQL.
+// `contact_id` has no foreign key: GDPR forget deletes a contact's rows explicitly (F1.3.T2).
+
+model RelationalTable {
+  id        String   @id @default(dbgenerated("identity.uuid_v7()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  /// Name of the column that identifies a row within a contact.
+  keyField  String   @map("key_field")
+  columns   Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  rows RelationalRow[]
+
+  @@unique([tenantId, name])
+  @@map("relational_tables")
+  @@schema("contacts")
+}
+
+model RelationalRow {
+  tableId   String   @map("table_id") @db.Uuid
+  contactId String   @map("contact_id") @db.Uuid
+  key       String
+  tenantId  String   @map("tenant_id") @db.Uuid
+  data      Json
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  table RelationalTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@id([tableId, contactId, key])
+  @@index([contactId])
+  @@map("relational_rows")
+  @@schema("contacts")
+}
