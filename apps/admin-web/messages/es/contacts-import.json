@@ -1,0 +1,92 @@
+{
+  "wizard": {
+    "title": "Importar contactos",
+    "stepsLabel": "Pasos de la importación",
+    "steps": { "upload": "Archivo", "settings": "Destino", "mapping": "Mapeo", "confirm": "Confirmar", "job": "Resultado" },
+    "errors": {
+      "loadFailed": "No se pudieron cargar los campos, listas o tablas.",
+      "uploadFailed": "No se pudo subir o leer el archivo.",
+      "noMapping": "Mapeá al menos una columna.",
+      "keyUnmapped": "Ninguna columna está mapeada al campo clave.",
+      "startFailed": "No se pudo iniciar la importación."
+    },
+    "upload": {
+      "file": "Archivo CSV",
+      "localPreview": "Vista previa local (primeras filas)",
+      "progress": "Subiendo: {pct}%",
+      "submit": "Subir y continuar"
+    },
+    "settings": {
+      "serverPreview": "Vista previa del servidor",
+      "target": "Destino",
+      "targets": { "contacts": "Contactos", "list": "Lista", "relational": "Tabla relacional" },
+      "list": "Lista",
+      "table": "Tabla relacional",
+      "mode": "Modo",
+      "modes": { "create": "Solo crear", "update": "Solo actualizar", "upsert": "Crear o actualizar" },
+      "keyId": "Campo clave"
+    },
+    "mapping": {
+      "help": "Elegí a qué campo va cada columna del CSV, o ignorala.",
+      "ignore": "Ignorar",
+      "internalId": "ID interno"
+    },
+    "next": "Continuar",
+    "back": "Volver",
+    "confirm": {
+      "title": "Confirmar importación",
+      "file": "Archivo",
+      "columns": "Columnas mapeadas",
+      "start": "Iniciar importación"
+    }
+  },
+  "job": {
+    "title": "Estado del job",
+    "loading": "Cargando…",
+    "loadFailed": "No se pudo consultar el job.",
+    "status": {
+      "draft": "Borrador",
+      "queued": "En cola",
+      "running": "En curso",
+      "completed": "Completado",
+      "failed": "Fallido",
+      "cancelled": "Cancelado"
+    },
+    "rowsRead": "Filas leídas",
+    "rowsOk": "Filas correctas",
+    "rowsFailed": "Filas con error",
+    "downloadErrors": "Descargar reporte de errores ({count})",
+    "downloadResult": "Descargar archivo exportado"
+  },
+  "exports": {
+    "title": "Exportaciones",
+    "fields": "Campos a exportar",
+    "scope": "Alcance",
+    "scopeAll": "Todos los contactos",
+    "create": "Crear exportación",
+    "errors": {
+      "loadFailed": "No se pudieron cargar los datos.",
+      "noFields": "Elegí al menos un campo.",
+      "createFailed": "No se pudo crear la exportación."
+    },
+    "history": {
+      "title": "Historial de jobs",
+      "kind": "Tipo",
+      "status": "Estado",
+      "created": "Creado",
+      "download": "Descargas",
+      "empty": "Todavía no hay jobs.",
+      "kinds": { "import": "Importación", "export": "Exportación" },
+      "statuses": {
+        "draft": "Borrador",
+        "queued": "En cola",
+        "running": "En curso",
+        "completed": "Completado",
+        "failed": "Fallido",
+        "cancelled": "Cancelado"
+      },
+      "downloadResult": "Descargar CSV",
+      "downloadErrors": "Descargar errores"
+    }
+  }
+}
