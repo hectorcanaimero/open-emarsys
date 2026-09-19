@@ -68,6 +68,8 @@ export function ImportWizard() {
   const [progress, setProgress] = useState<number | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [importId, setImportId] = useState<string | null>(null);
+  // `/start` enqueues a job with its own id; the draft id above is not a job.
+  const [jobId, setJobId] = useState<string | null>(null);
 
   // settings
   const [fields, setFields] = useState<Field[]>([]);
@@ -165,7 +167,7 @@ export function ImportWizard() {
     if (!importId || !preview) return;
     setError(null);
     try {
-      await api('POST', `/imports/${importId}/start`, {
+      const job = await api<Job>('POST', `/imports/${importId}/start`, {
         delimiter: preview.delimiter,
         encoding: preview.encoding,
         has_header: preview.has_header,
@@ -174,6 +176,7 @@ export function ImportWizard() {
         mode,
         target,
       });
+      setJobId(job.id);
       setStep('job');
     } catch {
       setError('startFailed');
@@ -365,7 +368,7 @@ export function ImportWizard() {
           </div>
         )}
 
-        {step === 'job' && importId && <JobView jobId={importId} />}
+        {step === 'job' && jobId && <JobView jobId={jobId} />}
       </div>
     </div>
   );

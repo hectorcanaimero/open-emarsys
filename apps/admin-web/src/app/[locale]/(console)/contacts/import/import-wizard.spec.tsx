@@ -53,9 +53,9 @@ const server = setupServer(
   ),
   http.post(`*${API}/imports/job-1/start`, async ({ request }) => {
     startBody = await request.json();
-    return HttpResponse.json({ ...baseJob, status: 'queued', progress: zero }, { status: 202 });
+    return HttpResponse.json({ ...baseJob, id: 'job-1-run', status: 'queued', progress: zero }, { status: 202 });
   }),
-  http.get(`*${API}/jobs/job-1`, () => {
+  http.get(`*${API}/jobs/job-1-run`, () => {
     polls += 1;
     return HttpResponse.json(
       polls < 2
