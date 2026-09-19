@@ -553,5 +553,15 @@ describe('security (full app: Postgres + NATS)', () => {
         await su.$executeRawUnsafe('GRANT SELECT ON identity.roles TO core');
       }
     });
+
+    it('a malformed JSON body is a 400, not a 500', async () => {
+      const res = await fetch(`${base}/admin/v1/roles`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${await user(f.adminA, f.tenantA, allPerms)}`, 'content-type': 'application/json' },
+        body: '{"name":',
+      });
+      expect(res.status).toBe(400);
+      expect(res.headers.get('content-type')).toContain('application/problem+json');
+    });
   });
 });

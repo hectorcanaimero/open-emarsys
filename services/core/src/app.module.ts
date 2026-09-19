@@ -56,6 +56,11 @@ class CoreProblemJsonFilter extends ProblemJsonFilter {
 
   override catch(exception: unknown, host: ArgumentsHost): void {
     if (exception instanceof HttpException) return super.catch(exception, host);
+    // body-parser's own errors (413 too large, 400 malformed JSON) are client errors, not 500s.
+    const status = (exception as { status?: unknown; expose?: unknown } | null)?.status;
+    if ((exception as { expose?: unknown } | null)?.expose === true && typeof status === 'number' && status >= 400 && status < 500) {
+      return super.catch(new HttpException((exception as Error).message, status), host);
+    }
     this.logger.error(exception instanceof Error ? exception.stack : String(exception));
     super.catch(new InternalServerErrorException(), host);
   }

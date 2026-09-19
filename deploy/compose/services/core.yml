@@ -34,6 +34,11 @@ services:
       CORE_ENCRYPTION_KEY: ${CORE_ENCRYPTION_KEY:?set CORE_ENCRYPTION_KEY in .env}
       CORE_SERVICE_CREDENTIALS: /run/secrets/service-credentials.json
       SMTP_URL: smtp://mailpit:1025
+      # GDPR exports (F1): the `exports` bucket that minio-init creates.
+      CORE_MINIO_ENDPOINT: http://minio:9000
+      CORE_MINIO_PUBLIC_ENDPOINT: http://localhost:${MINIO_API_PORT:-9000}
+      CORE_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      CORE_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       # startOtel() exports over OTLP; the SDK default (localhost:4318) is nothing inside the container.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     volumes:
@@ -48,6 +53,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/readyz"]
       interval: 10s

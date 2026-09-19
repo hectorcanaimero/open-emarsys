@@ -11,8 +11,9 @@ set -a
 set +a
 
 # Seeds run on the host (core's CLI through tsx), so on a clean clone they need the
-# workspace installed and core's Prisma client generated first.
+# workspace installed, core's workspace deps built and its Prisma client generated first.
 pnpm install --frozen-lockfile --silent
+pnpm --filter "@oe/core^..." run build >/dev/null # workspace libs resolve to their dist/
 pnpm --filter @oe/core run generate >/dev/null
 
 shopt -s nullglob

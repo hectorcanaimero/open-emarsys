@@ -32,4 +32,5 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512m
+          # 512m got OOM-killed during the 1 M-row contact import (F1.6.T1).
+          memory: 2g
