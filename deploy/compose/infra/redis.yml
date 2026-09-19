@@ -1,7 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
-    profiles: [core, data, ai]
+    profiles: [localdb]
     networks: [oe]
     # appendonly no: datos efímeros y reconstruibles (Data model → Redis).
     command: ["redis-server", "--appendonly", "no"]

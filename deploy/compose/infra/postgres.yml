@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17-alpine
-    profiles: [core, data, ai]
+    profiles: [localdb]
     networks: [oe]
     environment:
       POSTGRES_USER: ${OE_PG_ADMIN_USER}

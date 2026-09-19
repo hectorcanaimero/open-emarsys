@@ -57,9 +57,12 @@ const login = async (email: string, password: string) =>
   (await admin<{ access_token: string }>('POST', '/auth/login', undefined, { email, password })).access_token;
 
 function createOperator(): void {
+  // An external Postgres (OE_PG_HOST) is reached directly; the local one through its published port.
+  const host = process.env.OE_PG_HOST ?? 'localhost';
+  const port = process.env.OE_PG_HOST ? (process.env.OE_PG_HOST_PORT ?? '5432') : (process.env.OE_PG_PORT ?? '5432');
   const databaseUrl =
     process.env.DATABASE_URL ??
-    `postgres://core:${env('OE_PG_CORE_PASSWORD')}@localhost:${process.env.OE_PG_PORT ?? '5432'}/${env('OE_PG_DB')}?schema=identity`;
+    `postgres://core:${env('OE_PG_CORE_PASSWORD')}@${host}:${port}/${env('OE_PG_DB')}?schema=identity`;
   execFileSync(
     'pnpm',
     ['--filter', '@oe/core', 'cli', 'create-operator', '--email', env('OE_OPERATOR_EMAIL'), '--password', env('OE_OPERATOR_PASSWORD')],

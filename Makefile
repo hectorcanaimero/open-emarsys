@@ -20,8 +20,8 @@ up:
 	fi
 	@[ -f deploy/compose/.env ] || { cp deploy/compose/.env.example deploy/compose/.env; echo "deploy/compose/.env created from .env.example"; }
 	@scripts/dev-secrets.sh
-	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-core,data,obs} docker compose -f deploy/compose/docker-compose.yml up -d --build
-	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-core,data,obs} scripts/wait-healthy.sh
+	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-$$(grep -s '^COMPOSE_PROFILES=' deploy/compose/.env | cut -d= -f2-)}; COMPOSE_PROFILES=$${COMPOSE_PROFILES:-core,data,obs,localdb} docker compose -f deploy/compose/docker-compose.yml up -d --build
+	COMPOSE_PROFILES=$${COMPOSE_PROFILES:-$$(grep -s '^COMPOSE_PROFILES=' deploy/compose/.env | cut -d= -f2-)}; COMPOSE_PROFILES=$${COMPOSE_PROFILES:-core,data,obs,localdb} scripts/wait-healthy.sh
 
 down:
 	@if [ ! -f deploy/compose/docker-compose.yml ]; then \

@@ -7,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   type NestInterceptor,
 } from '@nestjs/common';
 import type { Observable } from 'rxjs';
@@ -44,7 +45,13 @@ export class PublicEnvelopeInterceptor implements NestInterceptor {
 /** Wraps errors thrown under `/api/v3` in the same envelope shape, with a business `replyCode` (C2). */
 @Catch()
 export class PublicEnvelopeFilter implements ExceptionFilter {
+  private readonly logger = new Logger('HTTP');
+
   catch(exception: unknown, host: ArgumentsHost): void {
+    // The envelope hides the cause from the client; without this a 500 leaves no trace at all.
+    if (!(exception instanceof HttpException)) {
+      this.logger.error(exception instanceof Error ? exception.stack : String(exception));
+    }
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<HttpResponseLike>();
 

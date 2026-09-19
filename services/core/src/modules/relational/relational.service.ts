@@ -141,14 +141,14 @@ export class RelationalService {
         valid.set(id, { contactId, key: row.row_key, data });
       });
       if (valid.size > 0) {
+        // One statement for the whole batch: a per-row upsert is one round trip each, and with a
+        // remote database 100 rows outlast Prisma's 5 s interactive-transaction timeout.
+        const batch = [...valid.values()].map((v) => ({ contact_id: v.contactId, key: v.key, data: v.data }));
         await this.prisma.$transaction(async (tx) => {
-          for (const v of valid.values()) {
-            await tx.relationalRow.upsert({
-              where: { tableId_contactId_key: { tableId, contactId: v.contactId, key: v.key } },
-              create: { tableId, contactId: v.contactId, key: v.key, tenantId, data: v.data as Prisma.InputJsonObject },
-              update: { data: v.data as Prisma.InputJsonObject },
-            });
-          }
+          await tx.$executeRaw`INSERT INTO contacts.relational_rows (table_id, contact_id, key, tenant_id, data, updated_at)
+            SELECT ${tableId}::uuid, r.contact_id, r.key, ${tenantId}::uuid, r.data, now()
+            FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb) AS r(contact_id uuid, key text, data jsonb)
+            ON CONFLICT (table_id, contact_id, key) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`;
         });
       }
       return { upserted: valid.size, errors };
