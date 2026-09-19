@@ -10,10 +10,11 @@ services:
     networks: [oe]
     command: ["node_modules/.bin/prisma", "migrate", "deploy", "--schema", "prisma/schema"]
     environment:
-      DATABASE_URL: postgres://core:${OE_PG_CORE_PASSWORD}@postgres:5432/${OE_PG_DB}
+      DATABASE_URL: postgres://core:${OE_PG_CORE_PASSWORD}@${OE_PG_HOST:-postgres}:${OE_PG_HOST_PORT:-5432}/${OE_PG_DB}
     depends_on:
       postgres:
         condition: service_healthy
+        required: false # absent when Postgres is external (no `localdb` profile)
 
   core:
     image: open-emarsys-core:dev
@@ -26,7 +27,9 @@ services:
       - "${OE_CORE_PORT:-3001}:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://core:${OE_PG_CORE_PASSWORD}@postgres:5432/${OE_PG_DB}
+      # OE_PG_HOST/OE_PG_HOST_PORT point at an external Postgres; connection_limit keeps a
+      # shared server's max_connections in reach (Prisma defaults to 2 x CPUs + 1).
+      DATABASE_URL: postgres://core:${OE_PG_CORE_PASSWORD}@${OE_PG_HOST:-postgres}:${OE_PG_HOST_PORT:-5432}/${OE_PG_DB}?connection_limit=${OE_PG_POOL:-5}
       NATS_URL: nats://nats:4222
       CORE_JWT_ISSUER: ${CORE_JWT_ISSUER:-open-emarsys/core}
       # The host paths in .env are bind-mounted below; core reads the container paths.
@@ -49,6 +52,7 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+        required: false
       nats:
         condition: service_healthy
       mailpit:

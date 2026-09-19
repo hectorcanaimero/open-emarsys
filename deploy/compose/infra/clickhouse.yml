@@ -1,7 +1,7 @@
 services:
   clickhouse:
     image: clickhouse/clickhouse-server:25.3
-    profiles: [core, data, ai]
+    profiles: [localdb]
     networks: [oe]
     environment:
       CLICKHOUSE_DB: ${OE_CH_DB:-oe}

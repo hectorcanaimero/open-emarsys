@@ -19,6 +19,8 @@ pnpm --filter @oe/core run generate >/dev/null
 shopt -s nullglob
 for seed in scripts/seed/*/seed.*; do
   echo "==> $seed"
+  # Re-read: an earlier seed may have written fresh credentials (the demo API client's secret).
+  set -a; [ -f .env.local ] && . ./.env.local; set +a
   case "$seed" in
     *.ts) pnpm --filter @oe/core exec tsx "$ROOT/$seed" ;; # tsx is a dependency of @oe/core
     *.sh) bash "$seed" ;;
